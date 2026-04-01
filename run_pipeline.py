@@ -553,7 +553,7 @@ poverty_rate_baseline = round(n_in_poverty_baseline / float(
 ) * 100, 1)
 
 poverty_line = _person_pop.household("poverty_line_bhc", YEAR).astype(float)
-poverty_gap = np.maximum(poverty_line - hh_net_income, 0)
+poverty_gap = _person_pop.household("poverty_gap_bhc", YEAR).astype(float)
 
 # --- Static poverty impact ---
 # For already-employed recently-active workers: if the employer NICs saving

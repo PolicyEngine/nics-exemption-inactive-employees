@@ -98,7 +98,7 @@
         "cost_bn": 3.5,
         "avg_nics_per_recent_worker": 1153,
         "poverty_impact": {
-          "n_lifted_out_of_poverty": 17438
+          "n_lifted_out_of_poverty": 5054
         }
       },
       "behavioural": {
@@ -184,7 +184,7 @@
       "poverty_impact": {
         "poverty_rate_baseline_pct": 8.2,
         "poverty_rate_reform_pct": 8.2,
-        "n_lifted_out_of_poverty": 25435
+        "n_lifted_out_of_poverty": 23909
       },
       "by_age": [
         {

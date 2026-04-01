@@ -173,22 +173,22 @@ is_employed = np.isin(employment_status, employed_statuses) & working_age
 
 dis_employed = is_disabled_broad & is_employed
 n_dis_employed = float(MicroSeries(dis_employed.astype(float), weights=person_weights).sum())
-dis_emp_rate = round(n_dis_employed / max(n_disabled, 1) * 100, 1)
+dis_emp_rate = round(n_dis_employed / n_disabled * 100, 1)
 
 non_dis = ~is_disabled_broad & working_age
 non_dis_employed = non_dis & is_employed
 n_non_dis = float(MicroSeries(non_dis.astype(float), weights=person_weights).sum())
 n_non_dis_employed = float(MicroSeries(non_dis_employed.astype(float), weights=person_weights).sum())
-non_dis_emp_rate = round(n_non_dis_employed / max(n_non_dis, 1) * 100, 1)
+non_dis_emp_rate = round(n_non_dis_employed / n_non_dis * 100, 1)
 disability_emp_gap = round(non_dis_emp_rate - dis_emp_rate, 1)
 
-pct_inactive_disabled = round(n_inactive_disabled / max(n_economically_inactive, 1) * 100, 1)
+pct_inactive_disabled = round(n_inactive_disabled / n_economically_inactive * 100, 1)
 
 # Average employer NICs per employed worker
 ni_employer_vals = baseline.calculate("ni_employer", YEAR).values.astype(float)
 avg_nics_per_worker = round(float(
     MicroSeries(ni_employer_vals * is_employed, weights=person_weights).sum()
-) / max(float(MicroSeries(is_employed.astype(float), weights=person_weights).sum()), 1))
+) / float(MicroSeries(is_employed.astype(float), weights=person_weights).sum()))
 
 print(f"  Economically inactive (working age): {n_economically_inactive:,.0f}")
 print(f"  Disabled (working age): {n_disabled:,.0f}")
@@ -325,15 +325,15 @@ print("KEY RESULTS — Employer NICs by recently-active status:")
 print("=" * 60)
 print(nics_by_status)
 print(f"\nTotal employer NICs: £{efrs_mdf.ni_employer.sum()/1e9:.1f}bn")
-print(f"NICs on recently-active:     £{nics_by_status.get(True, 0):.2f}bn")
-print(f"NICs on not recently-active: £{nics_by_status.get(False, 0):.2f}bn")
-print(f"Cost of exemption (static):  £{nics_by_status.get(True, 0):.2f}bn")
+print(f"NICs on recently-active:     £{nics_by_status[True]:.2f}bn")
+print(f"NICs on not recently-active: £{nics_by_status[False]:.2f}bn")
+print(f"Cost of exemption (static):  £{nics_by_status[True]:.2f}bn")
 
 # Average NICs per recently-active worker (working age only)
 _wa_recent = (efrs_imp.joined_labour_force_recently > 0.5) & (efrs_imp.age >= 16) & (efrs_imp.age < 65)
 _n_wa_recent = float(MicroSeries(_wa_recent.astype(float), weights=person_weights).sum())
 _nics_wa_recent = float(MicroSeries(efrs_imp.ni_employer.values * _wa_recent, weights=person_weights).sum())
-avg_nics_per_recent = round(_nics_wa_recent / max(_n_wa_recent, 1))
+avg_nics_per_recent = round(_nics_wa_recent / _n_wa_recent)
 print(f"Avg employer NICs per recently-active worker: £{avg_nics_per_recent:,}")
 
 # ── Step 7: Build age-group breakdowns ─────────────────────────────────
@@ -356,7 +356,7 @@ for lo, hi, label in age_bins:
         MicroSeries(efrs_imp.ni_employer.values * m, weights=person_weights).sum() / 1e9
     )
 
-    pct_recent = round(n_recent / max(n_total, 1) * 100, 1)
+    pct_recent = round(n_recent / n_total * 100, 1)
 
     print(f"  {label}: {n_recent:,.0f} recently active, "
           f"£{nics_recent:.2f}bn NICs exemption cost, "
@@ -410,13 +410,12 @@ for label, data_list in [("Gender", by_gender), ("Country", by_country), ("Famil
 print("\nStep 8: Building activity-by-age chart data...")
 
 # Chart 1 from notebook: LFS raw data — % becoming active by age
-from microdf import MicroDataFrame as _MDF
 lfs_df_chart = pd.DataFrame({
     "age": X_train.age.astype(float),
     "became_active": (y_train.was_inactive_at_some_point * y_train.became_active_afterwards).astype(float),
 })
 lfs_df_chart["weight"] = weights.values
-lfs_mdf = _MDF(lfs_df_chart, weights=lfs_df_chart.weight)
+lfs_mdf = MicroDataFrame(lfs_df_chart, weights=lfs_df_chart.weight)
 pct_active_by_age_lfs = lfs_mdf.became_active.groupby(lfs_mdf.age).mean()
 
 # Chart 2 from notebook: Imputed onto Enhanced FRS
@@ -428,8 +427,8 @@ pct_active_by_age = (
 
 # Pre-compute these for use in behavioural model and JSON output
 total_nics = float(efrs_mdf.ni_employer.sum() / 1e9)
-nics_recently_active = float(nics_by_status.get(True, 0))
-nics_not_recently_active = float(nics_by_status.get(False, 0))
+nics_recently_active = float(nics_by_status[True])
+nics_not_recently_active = float(nics_by_status[False])
 
 # ── Step 9: Behavioural model — labour supply response ────────────────
 

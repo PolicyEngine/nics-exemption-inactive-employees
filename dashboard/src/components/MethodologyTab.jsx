@@ -50,9 +50,7 @@ export default function MethodologyTab({ data }) {
             <li>Labour supply responses via extensive-margin participation elasticities (0.1 / 0.25 / 0.4)</li>
             <li>Fiscal offset: income tax + employee NICs + benefit savings from new workers</li>
             <li>Poverty impact (BHC) from increased employment</li>
-            <li>Counterfactual: 10% PIP/DLA cut modelled via income-effect elasticity (0.15), consistent with{" "}
-              <a href="https://doi.org/10.1086/319564" target="_blank" rel="noreferrer" className="underline">Gruber (2000)</a>{" "}
-              and{" "}
+            <li>Counterfactual: 10% PIP/DLA cut modelled via income-effect elasticity (0.22) from{" "}
               <a href="https://doi.org/10.1016/j.jpubeco.2012.01.006" target="_blank" rel="noreferrer" className="underline">Marie &amp; Vall Castell&oacute; (2012)</a>
             </li>
           </ul>

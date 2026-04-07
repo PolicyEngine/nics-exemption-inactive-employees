@@ -482,7 +482,7 @@
       "name": "Disability benefit cuts (10% PIP/DLA reduction)",
       "cut_rate_pct": 10.0,
       "fiscal_saving_bn": 2.32,
-      "n_entering_work": 9303,
+      "n_entering_work": 13626,
       "n_pushed_into_poverty": 8276,
       "n_affected": 3178747
     }

@@ -631,10 +631,9 @@ pct_change_cf = np.where(
 # to income loss). Use same elasticity framework but note the sign:
 # A negative income shock with positive participation elasticity means people
 # are pushed into the labour market.
-# Income-effect elasticity for benefit cuts. 0.15 is conservative, consistent
-# with DWP Spring Statement 2025 implied estimates and at the low end of
-# Gruber (2000, JPE: 0.28-0.36) and Marie & Vall Castello (2012, JPubE: 0.22).
-BENEFIT_CUT_ELAST = 0.15
+# Income-effect elasticity for benefit cuts, from
+# Marie & Vall Castello (2012, JPubE: 0.22).
+BENEFIT_CUT_ELAST = 0.22
 
 # Only disabled inactive people affected
 is_disabled_inactive = is_inactive & is_disabled_broad & working_age

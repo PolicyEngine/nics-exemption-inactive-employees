@@ -4,6 +4,7 @@ then produces the dashboard JSON with real PolicyEngine numbers."""
 from __future__ import annotations
 
 import json
+import argparse
 import sys
 from pathlib import Path
 
@@ -11,47 +12,51 @@ import numpy as np
 import pandas as pd
 from microdf import MicroDataFrame, MicroSeries
 
+ROOT = Path(__file__).resolve().parent
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+from nics_exemption.lfs import (
+    build_lfs_transition_targets,
+)
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Generate dashboard-ready NICs exemption policy results."
+    )
+    parser.add_argument("--year", type=int, required=True)
+    parser.add_argument("--lfs-path", type=Path, required=True)
+    parser.add_argument("--effective-marginal-rate", type=float, required=True)
+    parser.add_argument("--elasticity-low", type=float, required=True)
+    parser.add_argument("--elasticity-central", type=float, required=True)
+    parser.add_argument("--elasticity-high", type=float, required=True)
+    parser.add_argument("--benefit-cut-rate", type=float, required=True)
+    parser.add_argument("--benefit-cut-elasticity", type=float, required=True)
+    return parser.parse_args()
+
+
+args = parse_args()
+
 # ── Step 1: Load PolicyEngine baseline ──────────────────────────────────
 
 print("Step 1: Loading PolicyEngine UK baseline...")
 from policyengine_uk import Microsimulation
 
 baseline = Microsimulation()
-YEAR = 2025
+YEAR = args.year
 
 # ── Step 2: Load and prepare LFS data ──────────────────────────────────
 
 print("Step 2: Loading LFS data...")
-LFS_PATH = Path.home() / "Downloads/UKDA-9133-tab/tab/lgwt22_5q_aj22_aj23_eul.tab"
+LFS_PATH = args.lfs_path
 lfs = pd.read_csv(LFS_PATH, sep="\t")
 
 inactivity_variables = [
     "INCAC051", "INCAC052", "INCAC053", "INCAC054", "INCAC055",
 ]
 
-was_inactive_at_some_point = np.any(
-    [lfs[col] >= 6 for col in inactivity_variables], axis=0
-)
-became_active = np.any(
-    [lfs[col] == 1 for col in inactivity_variables], axis=0
-)
-quarter_of_last_inactivity = np.argmax(
-    [lfs[col] >= 6 for col in inactivity_variables],
-)
-quarter_of_first_activity = quarter_of_last_inactivity
-length_activity_after_inactivity = (
-    (4 - quarter_of_first_activity + 1) / 4
-)
-
-y_train = pd.DataFrame(dict(
-    was_inactive_at_some_point=was_inactive_at_some_point,
-    became_active_afterwards=became_active,
-    activity_length_after_inactivity=(
-        length_activity_after_inactivity
-        * was_inactive_at_some_point
-        * became_active
-    ),
-))
+y_train = build_lfs_transition_targets(lfs, inactivity_variables)
 
 predictor_mapping = {
     'AGE5': 'age', 'SEX': 'sex', 'MARSTA5': 'marital_status',
@@ -96,7 +101,12 @@ y_train = y_train[mask]
 weights = weights[mask]
 
 print(f"  LFS shapes - X: {X_train.shape}, y: {y_train.shape}")
-print(f"  Positive class rate: {y_train['activity_length_after_inactivity'].mean():.3f}")
+print(f"  Positive class rate: {y_train['joined_labour_force_recently'].mean():.3f}")
+lfs_transition_rate = MicroSeries(
+    y_train.joined_labour_force_recently.astype(float).values,
+    weights=weights.values,
+).mean()
+print(f"  Weighted transition rate: {float(lfs_transition_rate):.3f}")
 
 # ── Step 2b: Compute baseline stats from PolicyEngine & LFS ─────────────
 
@@ -256,7 +266,7 @@ efrs = baseline.calculate_dataframe(
     ["age", "gender", "employment_income"], YEAR
 )
 
-imputed_vars = ["was_inactive_at_some_point", "became_active_afterwards"]
+imputed_vars = ["joined_labour_force_recently"]
 predictor_vars = ["age", "gender", "employment_income"]
 
 print("Step 4: Running imputation...")
@@ -266,16 +276,16 @@ for col in imputed_vars:
     df[col] = df[col].astype(float)
 
 from microimpute.comparisons import autoimpute
-from microimpute import QuantReg, OLS, QRF
+from microimpute import QRF
 
-# Try all three models — autoimpute picks the best via cross-validation
-print("  Running autoimpute with OLS, QuantReg, QRF...")
+# Use QRF because it preserves heterogeneity for the rare transition target.
+print("  Running autoimpute with QRF...")
 results = autoimpute(
     df, efrs,
     predictors=predictor_vars,
     imputed_variables=imputed_vars,
     weight_col="weight",
-    models=[OLS, QuantReg, QRF],
+    models=[QRF],
 )
 print(f"  CV results:\n{results.cv_results}")
 
@@ -285,12 +295,10 @@ print("Step 5: Processing imputed results...")
 # autoimpute returns AutoImputeResult with .receiver_data containing imputations
 efrs_imp = results.receiver_data.copy()
 print(f"  Columns: {list(efrs_imp.columns)}")
-print(f"  was_inactive mean: {efrs_imp.was_inactive_at_some_point.mean():.4f}")
-print(f"  became_active mean: {efrs_imp.became_active_afterwards.mean():.4f}")
-
-efrs_imp["joined_labour_force_recently"] = (
-    efrs_imp.was_inactive_at_some_point * efrs_imp.became_active_afterwards
-)
+efrs_imp["joined_labour_force_recently"] = efrs_imp[
+    "joined_labour_force_recently"
+].clip(0, 1)
+print(f"  joined_labour_force_recently mean: {efrs_imp.joined_labour_force_recently.mean():.4f}")
 efrs_imp["joined_labour_force_recently"] = np.where(
     efrs_imp.age < 16, 0, efrs_imp["joined_labour_force_recently"]
 )
@@ -313,26 +321,28 @@ efrs_imp["country"] = _person_pop.household("country", YEAR)
 efrs_imp["family_type"] = _person_pop.benunit("family_type", YEAR)
 
 efrs_mdf = MicroDataFrame(efrs_imp, weights=person_weights)
+recent_prob = efrs_imp.joined_labour_force_recently.values.astype(float)
+eligible_recent_prob = recent_prob * working_age
 
-nics_by_status = (
-    efrs_mdf.ni_employer
-    .groupby(efrs_mdf.joined_labour_force_recently > 0.5)
-    .sum() / 1e9
+nics_recently_active = float(
+    MicroSeries(efrs_imp.ni_employer.values * eligible_recent_prob, weights=person_weights).sum() / 1e9
 )
+total_nics = float(efrs_mdf.ni_employer.sum() / 1e9)
+nics_not_recently_active = total_nics - nics_recently_active
 
 print("\n" + "=" * 60)
 print("KEY RESULTS — Employer NICs by recently-active status:")
 print("=" * 60)
-print(nics_by_status)
-print(f"\nTotal employer NICs: £{efrs_mdf.ni_employer.sum()/1e9:.1f}bn")
-print(f"NICs on recently-active:     £{nics_by_status[True]:.2f}bn")
-print(f"NICs on not recently-active: £{nics_by_status[False]:.2f}bn")
-print(f"Cost of exemption (static):  £{nics_by_status[True]:.2f}bn")
+print(f"\nTotal employer NICs: £{total_nics:.1f}bn")
+print(f"NICs on recently-active working-age employees: £{nics_recently_active:.2f}bn")
+print(f"NICs on other employees:                       £{nics_not_recently_active:.2f}bn")
+print(f"Cost of exemption (static):                    £{nics_recently_active:.2f}bn")
 
 # Average NICs per recently-active worker (working age only)
-_wa_recent = (efrs_imp.joined_labour_force_recently > 0.5) & (efrs_imp.age >= 16) & (efrs_imp.age < 65)
-_n_wa_recent = float(MicroSeries(_wa_recent.astype(float), weights=person_weights).sum())
-_nics_wa_recent = float(MicroSeries(efrs_imp.ni_employer.values * _wa_recent, weights=person_weights).sum())
+_n_wa_recent = float(MicroSeries(eligible_recent_prob, weights=person_weights).sum())
+_nics_wa_recent = float(MicroSeries(efrs_imp.ni_employer.values * eligible_recent_prob, weights=person_weights).sum())
+if _n_wa_recent <= 0:
+    raise ValueError("No recently active working-age employees found.")
 avg_nics_per_recent = round(_nics_wa_recent / _n_wa_recent)
 print(f"Avg employer NICs per recently-active worker: £{avg_nics_per_recent:,}")
 
@@ -345,12 +355,12 @@ age_bins = [(16, 24, "16-24"), (25, 34, "25-34"), (35, 49, "35-49"),
 age_data = []
 for lo, hi, label in age_bins:
     m = (efrs_imp.age >= lo) & (efrs_imp.age <= hi)
-    m_recent = m & (efrs_imp.joined_labour_force_recently > 0.5)
+    m_recent_prob = recent_prob * m
 
     n_total = float(MicroSeries(m.astype(float), weights=person_weights).sum())
-    n_recent = float(MicroSeries(m_recent.astype(float), weights=person_weights).sum())
+    n_recent = float(MicroSeries(m_recent_prob, weights=person_weights).sum())
     nics_recent = float(
-        MicroSeries(efrs_imp.ni_employer.values * m_recent, weights=person_weights).sum() / 1e9
+        MicroSeries(efrs_imp.ni_employer.values * m_recent_prob, weights=person_weights).sum() / 1e9
     )
     nics_total = float(
         MicroSeries(efrs_imp.ni_employer.values * m, weights=person_weights).sum() / 1e9
@@ -375,15 +385,15 @@ for lo, hi, label in age_bins:
 
 print("\nStep 7b: Building breakdowns by gender, country, family type...")
 
-is_recent = efrs_imp.joined_labour_force_recently > 0.5
+is_recent = recent_prob
 is_working_age = (efrs_imp.age >= 16) & (efrs_imp.age < 65)
 
 def _build_breakdown(group_col, group_vals):
     rows = []
     for val in group_vals:
         m = (efrs_imp[group_col] == val) & is_working_age
-        m_recent = m & is_recent
-        n_recent = float(MicroSeries(m_recent.astype(float), weights=person_weights).sum())
+        m_recent = is_recent * m
+        n_recent = float(MicroSeries(m_recent, weights=person_weights).sum())
         nics_cost = float(
             MicroSeries(efrs_imp.ni_employer.values * m_recent, weights=person_weights).sum() / 1e9
         )
@@ -412,7 +422,7 @@ print("\nStep 8: Building activity-by-age chart data...")
 # Chart 1 from notebook: LFS raw data — % becoming active by age
 lfs_df_chart = pd.DataFrame({
     "age": X_train.age.astype(float),
-    "became_active": (y_train.was_inactive_at_some_point * y_train.became_active_afterwards).astype(float),
+    "became_active": y_train.joined_labour_force_recently.astype(float),
 })
 lfs_df_chart["weight"] = weights.values
 lfs_mdf = MicroDataFrame(lfs_df_chart, weights=lfs_df_chart.weight)
@@ -424,11 +434,6 @@ pct_active_by_age = (
     .groupby(efrs_mdf.age)
     .mean()
 )
-
-# Pre-compute these for use in behavioural model and JSON output
-total_nics = float(efrs_mdf.ni_employer.sum() / 1e9)
-nics_recently_active = float(nics_by_status[True])
-nics_not_recently_active = float(nics_by_status[False])
 
 # ── Step 9: Behavioural model — labour supply response ────────────────
 
@@ -456,7 +461,9 @@ for lo, hi in _age_bands:
         m = is_employed & (age >= lo) & (age <= hi) & (gender_arr == g)
         if m.sum() > 0:
             median_wage = float(MicroSeries(emp_income[m], weights=person_weights[m]).median())
-            _median_wages[(lo, hi, g)] = max(median_wage, 0)
+            if median_wage < 0:
+                raise ValueError(f"Negative median wage for age {lo}-{hi}, gender {g}")
+            _median_wages[(lo, hi, g)] = median_wage
         else:
             raise ValueError(f"No employed people found for age {lo}-{hi}, gender {g}")
 
@@ -467,7 +474,7 @@ for lo, hi in _age_bands:
         potential_wage[m] = _median_wages[(lo, hi, g)]
 
 # 9b — employer NICs on potential wage (rate and threshold from PE parameters)
-_class_1 = baseline.tax_benefit_system.parameters("2025-01-01").gov.hmrc.national_insurance.class_1
+_class_1 = baseline.tax_benefit_system.parameters(f"{YEAR}-01-01").gov.hmrc.national_insurance.class_1
 NICS_RATE = float(_class_1.rates.employer)
 SECONDARY_THRESHOLD = float(_class_1.thresholds.secondary_threshold) * 52  # weekly → annual
 print(f"  Employer NICs rate: {NICS_RATE:.1%}, secondary threshold: £{SECONDARY_THRESHOLD:,.0f}/year")
@@ -483,10 +490,9 @@ potential_gross_with_exemption = potential_wage + potential_nics
 # With the exemption, they earn potential_wage + potential_nics (employer saving passed through).
 # The marginal gain from the policy = potential_nics (the NICs saving).
 # We express this as a % of net income if working WITHOUT the exemption.
-# Assumed EMTR for workers entering from inactivity (~20% income tax + 8% employee
-# NICs + ~12% benefit withdrawal). PE's marginal_tax_rate variable cannot be used
-# here because these people are currently inactive with zero employment income.
-EFFECTIVE_MARGINAL_RATE = 0.40
+# PE's marginal_tax_rate variable cannot be used here because these people are
+# currently inactive with zero employment income.
+EFFECTIVE_MARGINAL_RATE = args.effective_marginal_rate
 net_nics_saving = potential_nics * (1 - EFFECTIVE_MARGINAL_RATE)
 net_income_if_working = hh_net_income + potential_wage * (1 - EFFECTIVE_MARGINAL_RATE)
 pct_change_income = np.where(
@@ -498,9 +504,11 @@ pct_change_income = np.where(
 pct_change_income = np.where(is_inactive, pct_change_income, 0.0)
 
 # 9d — participation elasticity
-# Literature range 0.1–0.5 for inactive populations; use 0.25 as central estimate
-# Sensitivity: also compute at 0.1 (low) and 0.4 (high)
-ELASTICITIES = {"low": 0.10, "central": 0.25, "high": 0.40}
+ELASTICITIES = {
+    "low": args.elasticity_low,
+    "central": args.elasticity_central,
+    "high": args.elasticity_high,
+}
 
 behavioural_results = {}
 for label, elast in ELASTICITIES.items():
@@ -562,11 +570,14 @@ poverty_gap = _person_pop.household("poverty_gap_bhc", YEAR).astype(float)
 # --- Static poverty impact ---
 # For already-employed recently-active workers: if the employer NICs saving
 # is passed through as higher wages, does it close their poverty gap?
-is_recent = efrs_imp.joined_labour_force_recently.values > 0.5
 nics_saving_per_person = ni_employer.values.astype(float)  # their actual employer NICs
 static_net_gain = nics_saving_per_person * (1 - EFFECTIVE_MARGINAL_RATE)
-static_lifted = (is_recent & working_age & poverty_bhc.astype(bool) &
-                 (static_net_gain > poverty_gap)).astype(float)
+static_lifted = (
+    recent_prob
+    * working_age
+    * poverty_bhc.astype(bool)
+    * (static_net_gain > poverty_gap)
+).astype(float)
 n_lifted_static = float(MicroSeries(static_lifted, weights=person_weights).sum())
 print(f"  Static poverty reduction: {n_lifted_static:,.0f} people lifted out")
 
@@ -605,10 +616,9 @@ poverty_impact = {
 
 print("\nStep 10: Counterfactual — disability benefit cuts...")
 
-# Model the government's proposed disability benefit reforms:
-# Approximate as a 10% cut to PIP/DLA for working-age recipients
-# (Spring Statement 2025 proposed ~£4.7bn savings over forecast period)
-CUT_RATE = 0.10  # 10% reduction in PIP/DLA
+# Model the government's proposed disability benefit reforms as a proportional
+# cut to PIP/DLA for working-age recipients.
+CUT_RATE = args.benefit_cut_rate
 pip_person = baseline.calculate("pip", YEAR).values.astype(float)
 dla_person = baseline.calculate("dla", YEAR).values.astype(float)
 benefit_loss = (pip_person + dla_person) * CUT_RATE  # annual loss per person
@@ -631,9 +641,7 @@ pct_change_cf = np.where(
 # to income loss). Use same elasticity framework but note the sign:
 # A negative income shock with positive participation elasticity means people
 # are pushed into the labour market.
-# Income-effect elasticity for benefit cuts, from
-# Marie & Vall Castello (2012, JPubE: 0.22).
-BENEFIT_CUT_ELAST = 0.22
+BENEFIT_CUT_ELAST = args.benefit_cut_elasticity
 
 # Only disabled inactive people affected
 is_disabled_inactive = is_inactive & is_disabled_broad & working_age
@@ -711,8 +719,8 @@ def _build_decile_breakdown(decile_arr, label_prefix):
     rows = []
     for d in range(1, 11):
         m = (decile_arr == d) & is_working_age
-        m_recent = m & is_recent
-        n_recent = float(MicroSeries(m_recent.astype(float), weights=person_weights).sum())
+        m_recent = is_recent * m
+        n_recent = float(MicroSeries(m_recent, weights=person_weights).sum())
         nics_cost = float(
             MicroSeries(efrs_imp.ni_employer.values * m_recent, weights=person_weights).sum() / 1e9
         )
@@ -799,6 +807,7 @@ output = {
                     "nics_exemption_cost_bn": d["nics_exemption_cost_bn"],
                 }
                 for d in age_data
+                if d["age_group"] != "65+"
             ],
             "by_gender": by_gender,
             "by_country": by_country,

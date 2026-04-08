@@ -13,6 +13,11 @@ import numpy as np
 import pandas as pd
 from microdf import MicroDataFrame, MicroSeries
 
+from .lfs import (
+    LFS_INACTIVITY_COLS,
+    build_lfs_transition_targets,
+)
+
 DEFAULT_YEAR = 2025
 DEFAULT_OUTPUT_PATH = Path("data/nics_exemption_results.json")
 DEFAULT_DASHBOARD_OUTPUT_PATH = Path("dashboard/public/data/nics_exemption_results.json")
@@ -52,17 +57,9 @@ CATEGORICAL_VARS = [
     'occupation_code', 'industry_code',
 ]
 
-LFS_INACTIVITY_COLS = ["INCAC051", "INCAC052", "INCAC053", "INCAC054", "INCAC055"]
-
-
 def _policyengine_classes():
-    try:
-        from policyengine_uk import Microsimulation
-        return Microsimulation
-    except ImportError as exc:
-        raise RuntimeError(
-            "Running the simulation requires policyengine-uk."
-        ) from exc
+    from policyengine_uk import Microsimulation
+    return Microsimulation
 
 
 def prepare_lfs_data(lfs_path: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
@@ -72,19 +69,7 @@ def prepare_lfs_data(lfs_path: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.Seri
     """
     lfs = pd.read_csv(lfs_path, sep="\t")
 
-    # Create target variables
-    was_inactive = np.any([lfs[col] >= 6 for col in LFS_INACTIVITY_COLS], axis=0)
-    became_active = np.any([lfs[col] == 1 for col in LFS_INACTIVITY_COLS], axis=0)
-    quarter_last_inactive = np.argmax(
-        [lfs[col] >= 6 for col in LFS_INACTIVITY_COLS], axis=0
-    )
-    length_activity = (4 - quarter_last_inactive + 1) / 4
-
-    y_train = pd.DataFrame({
-        "was_inactive_at_some_point": was_inactive,
-        "became_active_afterwards": became_active,
-        "activity_length_after_inactivity": length_activity * was_inactive * became_active,
-    })
+    y_train = build_lfs_transition_targets(lfs, LFS_INACTIVITY_COLS)
 
     # Predictors
     X_train = lfs[list(PREDICTOR_MAPPING.keys())].rename(columns=PREDICTOR_MAPPING)
@@ -107,6 +92,7 @@ def impute_inactivity_onto_frs(
 ) -> pd.DataFrame:
     """Impute LFS inactivity variables onto Enhanced FRS using microimpute."""
     from microimpute.comparisons import autoimpute
+    from microimpute import QRF
 
     # Get FRS data
     efrs = baseline.calculate_dataframe(
@@ -123,8 +109,10 @@ def impute_inactivity_onto_frs(
     lfs_df["weight"] = weights
 
     # Impute
-    imputed_vars = ["was_inactive_at_some_point", "became_active_afterwards"]
+    imputed_vars = ["joined_labour_force_recently"]
     predictor_vars = ["age", "gender", "employment_income"]
+    for col in imputed_vars:
+        lfs_df[col] = lfs_df[col].astype(float)
 
     results = autoimpute(
         lfs_df,
@@ -132,16 +120,13 @@ def impute_inactivity_onto_frs(
         predictors=predictor_vars,
         imputed_variables=imputed_vars,
         weight_col="weight",
+        models=[QRF],
     )
 
-    # Process results
-    efrs_result = pd.DataFrame(data=results[1].values.T[:5].T)
-    efrs_result.columns = predictor_vars + imputed_vars
-
-    efrs_result["joined_labour_force_recently"] = (
-        efrs_result.was_inactive_at_some_point
-        * efrs_result.became_active_afterwards
-    )
+    efrs_result = results.receiver_data.copy()
+    efrs_result["joined_labour_force_recently"] = efrs_result[
+        "joined_labour_force_recently"
+    ].clip(0, 1)
     # Children not in LFS
     efrs_result["joined_labour_force_recently"] = np.where(
         efrs_result.age < 16, 0, efrs_result["joined_labour_force_recently"]
@@ -177,21 +162,25 @@ def build_results(year: int = DEFAULT_YEAR, lfs_path: str = None) -> dict:
         efrs = impute_inactivity_onto_frs(baseline, year, lfs_path)
         efrs["ni_employer"] = ni_employer.values
         efrs_mdf = MicroDataFrame(efrs, weights=person_weights)
+        working_age = (efrs.age.values >= 16) & (efrs.age.values <= 64)
+        recent_prob = efrs.joined_labour_force_recently.values.astype(float)
+        eligible_recent_prob = recent_prob * working_age
 
-        # Total employer NICs by recently-active status
-        nics_by_status = efrs_mdf.ni_employer.groupby(
-            efrs_mdf.joined_labour_force_recently > 0.5
-        ).sum() / 1e9
+        nics_recently_active = (
+            MicroSeries(efrs.ni_employer.values * eligible_recent_prob, weights=person_weights).sum()
+            / 1e9
+        )
+        total_employer_nics = efrs_mdf.ni_employer.sum() / 1e9
 
         results["nics_exemption"] = {
             "total_employer_nics_bn": round(
-                float(efrs_mdf.ni_employer.sum() / 1e9), 1
+                float(total_employer_nics), 1
             ),
             "nics_recently_active_bn": round(
-                float(nics_by_status.get(True, 0)), 1
+                float(nics_recently_active), 1
             ),
             "nics_not_recently_active_bn": round(
-                float(nics_by_status.get(False, 0)), 1
+                float(total_employer_nics - nics_recently_active), 1
             ),
         }
 
@@ -206,18 +195,16 @@ def build_results(year: int = DEFAULT_YEAR, lfs_path: str = None) -> dict:
         ]
         for lo, hi, label in age_bins:
             mask = (efrs.age >= lo) & (efrs.age <= hi)
-            recently_active_mask = mask & (
-                efrs.joined_labour_force_recently > 0.5
-            )
+            recently_active_prob = recent_prob * mask
 
             n_total = MicroSeries(
                 mask.astype(float), weights=person_weights
             ).sum()
             n_recently_active = MicroSeries(
-                recently_active_mask.astype(float), weights=person_weights
+                recently_active_prob, weights=person_weights
             ).sum()
             nics_cost = MicroSeries(
-                efrs.ni_employer.values * recently_active_mask,
+                efrs.ni_employer.values * recently_active_prob,
                 weights=person_weights,
             ).sum() / 1e9
 
@@ -226,38 +213,69 @@ def build_results(year: int = DEFAULT_YEAR, lfs_path: str = None) -> dict:
                 "n_total": round(float(n_total)),
                 "n_recently_active": round(float(n_recently_active)),
                 "pct_recently_active": round(
-                    float(n_recently_active / max(n_total, 1) * 100), 1
+                    float(n_recently_active / n_total * 100), 1
                 ),
                 "nics_exemption_cost_bn": round(float(nics_cost), 2),
             })
 
         results["by_age"] = age_groups
+        working_age_groups = [
+            {
+                "age_group": row["age_group"],
+                "n_recently_active": row["n_recently_active"],
+                "nics_exemption_cost_bn": row["nics_exemption_cost_bn"],
+            }
+            for row in age_groups
+            if row["age_group"] != "65+"
+        ]
+        results["baseline"] = {
+            "summary": {
+                "total_employer_nics_bn": results["nics_exemption"]["total_employer_nics_bn"],
+                "n_working_age": round(
+                    float(MicroSeries(working_age.astype(float), weights=person_weights).sum())
+                ),
+                "n_disabled": round(
+                    float(MicroSeries(is_disabled.astype(float), weights=person_weights).sum())
+                ),
+            },
+            "by_age": age_groups,
+        }
+        results["reform"] = {
+            "nics_exemption": {
+                "static": {
+                    "cost_bn": results["nics_exemption"]["nics_recently_active_bn"],
+                },
+                "by_age": working_age_groups,
+            },
+        }
     else:
         print("No LFS path provided, generating baseline-only results...")
         # Basic results without imputation
         results["baseline"] = {
-            "total_employer_nics_bn": round(
-                float(
-                    MicroSeries(ni_employer, weights=person_weights).sum()
-                    / 1e9
+            "summary": {
+                "total_employer_nics_bn": round(
+                    float(
+                        MicroSeries(ni_employer, weights=person_weights).sum()
+                        / 1e9
+                    ),
+                    1,
                 ),
-                1,
-            ),
-            "n_working_age": round(
-                float(
-                    MicroSeries(
-                        ((age >= 16) & (age <= 64)).astype(float),
-                        weights=person_weights,
-                    ).sum()
-                )
-            ),
-            "n_disabled": round(
-                float(
-                    MicroSeries(
-                        is_disabled.astype(float), weights=person_weights
-                    ).sum()
-                )
-            ),
+                "n_working_age": round(
+                    float(
+                        MicroSeries(
+                            ((age >= 16) & (age <= 64)).astype(float),
+                            weights=person_weights,
+                        ).sum()
+                    )
+                ),
+                "n_disabled": round(
+                    float(
+                        MicroSeries(
+                            is_disabled.astype(float), weights=person_weights
+                        ).sum()
+                    )
+                ),
+            },
         }
 
     return results

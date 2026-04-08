@@ -96,12 +96,13 @@ def test_compute_cost_effectiveness():
 
 
 def test_compute_cost_effectiveness_zero_employees():
-    result = compute_cost_effectiveness(
-        exemption_cost_bn=1.0,
-        n_target_employees=0,
-    )
-    # Should not raise, uses max(n, 1)
-    assert result["cost_per_employee"] > 0
+    import pytest
+
+    with pytest.raises(ValueError):
+        compute_cost_effectiveness(
+            exemption_cost_bn=1.0,
+            n_target_employees=0,
+        )
 
 
 def test_estimate_employment_entry_effect():
@@ -109,6 +110,7 @@ def test_estimate_employment_entry_effect():
         exemption_cost_bn=2.0,
         elasticity=0.2,
         n_inactive=5_000_000,
+        employer_nics_rate=0.15,
     )
     assert result["elasticity"] == 0.2
     assert result["additional_entries"] > 0

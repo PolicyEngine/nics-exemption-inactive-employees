@@ -17,41 +17,41 @@
       {
         "age_group": "16-24",
         "n_total": 5999841,
-        "n_recently_active": 910683,
-        "pct_recently_active": 15.2,
-        "nics_exemption_cost_bn": 0.62,
+        "n_recently_active": 671483,
+        "pct_recently_active": 11.2,
+        "nics_exemption_cost_bn": 0.69,
         "employer_nics_bn": 8.4
       },
       {
         "age_group": "25-34",
         "n_total": 11137189,
-        "n_recently_active": 653754,
-        "pct_recently_active": 5.9,
-        "nics_exemption_cost_bn": 1.43,
+        "n_recently_active": 515630,
+        "pct_recently_active": 4.6,
+        "nics_exemption_cost_bn": 1.73,
         "employer_nics_bn": 41.7
       },
       {
         "age_group": "35-49",
         "n_total": 13447251,
-        "n_recently_active": 636224,
-        "pct_recently_active": 4.7,
-        "nics_exemption_cost_bn": 1.09,
+        "n_recently_active": 388555,
+        "pct_recently_active": 2.9,
+        "nics_exemption_cost_bn": 1.2,
         "employer_nics_bn": 53.8
       },
       {
         "age_group": "50-64",
         "n_total": 13807386,
-        "n_recently_active": 770497,
-        "pct_recently_active": 5.6,
-        "nics_exemption_cost_bn": 0.29,
+        "n_recently_active": 71752,
+        "pct_recently_active": 0.5,
+        "nics_exemption_cost_bn": 0.21,
         "employer_nics_bn": 46.3
       },
       {
         "age_group": "65+",
         "n_total": 13236813,
-        "n_recently_active": 817047,
-        "pct_recently_active": 6.2,
-        "nics_exemption_cost_bn": 0.03,
+        "n_recently_active": 207633,
+        "pct_recently_active": 1.6,
+        "nics_exemption_cost_bn": 0.0,
         "employer_nics_bn": 1.1
       }
     ],
@@ -89,16 +89,16 @@
   },
   "nics_exemption": {
     "total_employer_nics_bn": 151.3,
-    "nics_recently_active_bn": 3.45,
-    "nics_not_recently_active_bn": 147.83
+    "nics_recently_active_bn": 3.83,
+    "nics_not_recently_active_bn": 147.46
   },
   "reform": {
     "nics_exemption": {
       "static": {
-        "cost_bn": 3.5,
-        "avg_nics_per_recent_worker": 1153,
+        "cost_bn": 3.8,
+        "avg_nics_per_recent_worker": 2322,
         "poverty_impact": {
-          "n_lifted_out_of_poverty": 5054
+          "n_lifted_out_of_poverty": 5161
         }
       },
       "behavioural": {
@@ -106,7 +106,7 @@
           "elasticity": 0.1,
           "n_new_entrants": 28519,
           "fiscal_offset_bn": 0.31,
-          "net_cost_bn": 3.14,
+          "net_cost_bn": 3.51,
           "by_age": [
             {
               "age_group": "16-24",
@@ -132,7 +132,7 @@
           "elasticity": 0.25,
           "n_new_entrants": 71252,
           "fiscal_offset_bn": 0.78,
-          "net_cost_bn": 2.67,
+          "net_cost_bn": 3.04,
           "by_age": [
             {
               "age_group": "16-24",
@@ -158,7 +158,7 @@
           "elasticity": 0.4,
           "n_new_entrants": 113784,
           "fiscal_offset_bn": 1.25,
-          "net_cost_bn": 2.2,
+          "net_cost_bn": 2.58,
           "by_age": [
             {
               "age_group": "16-24",
@@ -189,188 +189,183 @@
       "by_age": [
         {
           "age_group": "16-24",
-          "n_recently_active": 910683,
-          "nics_exemption_cost_bn": 0.62
+          "n_recently_active": 671483,
+          "nics_exemption_cost_bn": 0.69
         },
         {
           "age_group": "25-34",
-          "n_recently_active": 653754,
-          "nics_exemption_cost_bn": 1.43
+          "n_recently_active": 515630,
+          "nics_exemption_cost_bn": 1.73
         },
         {
           "age_group": "35-49",
-          "n_recently_active": 636224,
-          "nics_exemption_cost_bn": 1.09
+          "n_recently_active": 388555,
+          "nics_exemption_cost_bn": 1.2
         },
         {
           "age_group": "50-64",
-          "n_recently_active": 770497,
-          "nics_exemption_cost_bn": 0.29
-        },
-        {
-          "age_group": "65+",
-          "n_recently_active": 817047,
-          "nics_exemption_cost_bn": 0.03
+          "n_recently_active": 71752,
+          "nics_exemption_cost_bn": 0.21
         }
       ],
       "by_gender": [
         {
           "group": "Male",
-          "n_recently_active": 1514949,
-          "nics_exemption_cost_bn": 2.06
+          "n_recently_active": 894551,
+          "nics_exemption_cost_bn": 2.08
         },
         {
           "group": "Female",
-          "n_recently_active": 1456209,
-          "nics_exemption_cost_bn": 1.37
+          "n_recently_active": 752870,
+          "nics_exemption_cost_bn": 1.75
         }
       ],
       "by_country": [
         {
           "group": "England",
-          "n_recently_active": 2371065,
-          "nics_exemption_cost_bn": 2.78
+          "n_recently_active": 1335406,
+          "nics_exemption_cost_bn": 3.09
         },
         {
           "group": "Scotland",
-          "n_recently_active": 264091,
-          "nics_exemption_cost_bn": 0.29
+          "n_recently_active": 155131,
+          "nics_exemption_cost_bn": 0.38
         },
         {
           "group": "Wales",
-          "n_recently_active": 209489,
-          "nics_exemption_cost_bn": 0.17
+          "n_recently_active": 98051,
+          "nics_exemption_cost_bn": 0.19
         },
         {
           "group": "Northern Ireland",
-          "n_recently_active": 126512,
-          "nics_exemption_cost_bn": 0.19
+          "n_recently_active": 58832,
+          "nics_exemption_cost_bn": 0.17
         }
       ],
       "by_family_type": [
         {
           "group": "Single",
-          "n_recently_active": 673931,
-          "nics_exemption_cost_bn": 0.54
+          "n_recently_active": 291677,
+          "nics_exemption_cost_bn": 0.6
         },
         {
           "group": "Couple No Children",
-          "n_recently_active": 1121742,
-          "nics_exemption_cost_bn": 1.99
+          "n_recently_active": 699815,
+          "nics_exemption_cost_bn": 2.36
         },
         {
           "group": "Couple With Children",
-          "n_recently_active": 834425,
-          "nics_exemption_cost_bn": 0.73
+          "n_recently_active": 446900,
+          "nics_exemption_cost_bn": 0.75
         },
         {
           "group": "Lone Parent",
-          "n_recently_active": 341061,
-          "nics_exemption_cost_bn": 0.15
+          "n_recently_active": 209029,
+          "nics_exemption_cost_bn": 0.12
         }
       ],
       "by_income_decile": [
         {
           "group": "1",
-          "n_recently_active": 570519,
-          "nics_exemption_cost_bn": 0.08
+          "n_recently_active": 126249,
+          "nics_exemption_cost_bn": 0.07
         },
         {
           "group": "2",
-          "n_recently_active": 235452,
+          "n_recently_active": 111199,
           "nics_exemption_cost_bn": 0.18
         },
         {
           "group": "3",
-          "n_recently_active": 318281,
-          "nics_exemption_cost_bn": 0.17
+          "n_recently_active": 150464,
+          "nics_exemption_cost_bn": 0.23
         },
         {
           "group": "4",
-          "n_recently_active": 368017,
-          "nics_exemption_cost_bn": 0.43
+          "n_recently_active": 239803,
+          "nics_exemption_cost_bn": 0.41
         },
         {
           "group": "5",
-          "n_recently_active": 257581,
-          "nics_exemption_cost_bn": 0.37
+          "n_recently_active": 155254,
+          "nics_exemption_cost_bn": 0.38
         },
         {
           "group": "6",
-          "n_recently_active": 271612,
-          "nics_exemption_cost_bn": 0.37
+          "n_recently_active": 175597,
+          "nics_exemption_cost_bn": 0.36
         },
         {
           "group": "7",
-          "n_recently_active": 224318,
-          "nics_exemption_cost_bn": 0.33
+          "n_recently_active": 98660,
+          "nics_exemption_cost_bn": 0.29
         },
         {
           "group": "8",
-          "n_recently_active": 291484,
-          "nics_exemption_cost_bn": 0.67
+          "n_recently_active": 293594,
+          "nics_exemption_cost_bn": 1.03
         },
         {
           "group": "9",
-          "n_recently_active": 293565,
-          "nics_exemption_cost_bn": 0.63
+          "n_recently_active": 205662,
+          "nics_exemption_cost_bn": 0.64
         },
         {
           "group": "10",
-          "n_recently_active": 140328,
-          "nics_exemption_cost_bn": 0.2
+          "n_recently_active": 90939,
+          "nics_exemption_cost_bn": 0.24
         }
       ],
       "by_wealth_decile": [
         {
           "group": "1",
-          "n_recently_active": 446759,
-          "nics_exemption_cost_bn": 0.17
+          "n_recently_active": 87326,
+          "nics_exemption_cost_bn": 0.13
         },
         {
           "group": "2",
-          "n_recently_active": 254927,
-          "nics_exemption_cost_bn": 0.49
+          "n_recently_active": 203210,
+          "nics_exemption_cost_bn": 0.51
         },
         {
           "group": "3",
-          "n_recently_active": 287339,
-          "nics_exemption_cost_bn": 0.4
+          "n_recently_active": 169369,
+          "nics_exemption_cost_bn": 0.33
         },
         {
           "group": "4",
-          "n_recently_active": 329209,
-          "nics_exemption_cost_bn": 0.35
+          "n_recently_active": 235545,
+          "nics_exemption_cost_bn": 0.49
         },
         {
           "group": "5",
-          "n_recently_active": 297235,
+          "n_recently_active": 209490,
           "nics_exemption_cost_bn": 0.35
         },
         {
           "group": "6",
-          "n_recently_active": 209172,
-          "nics_exemption_cost_bn": 0.4
+          "n_recently_active": 159968,
+          "nics_exemption_cost_bn": 0.41
         },
         {
           "group": "7",
-          "n_recently_active": 210667,
-          "nics_exemption_cost_bn": 0.2
+          "n_recently_active": 82530,
+          "nics_exemption_cost_bn": 0.21
         },
         {
           "group": "8",
-          "n_recently_active": 391294,
-          "nics_exemption_cost_bn": 0.73
+          "n_recently_active": 338988,
+          "nics_exemption_cost_bn": 1.15
         },
         {
           "group": "9",
-          "n_recently_active": 315830,
-          "nics_exemption_cost_bn": 0.24
+          "n_recently_active": 104196,
+          "nics_exemption_cost_bn": 0.13
         },
         {
           "group": "10",
-          "n_recently_active": 228725,
-          "nics_exemption_cost_bn": 0.1
+          "n_recently_active": 56799,
+          "nics_exemption_cost_bn": 0.13
         }
       ],
       "by_income_decile_behavioural": [
@@ -489,60 +484,60 @@
   },
   "pct_active_by_age_lfs": {
     "16": 0.1227,
-    "17": 0.3308,
-    "18": 0.1517,
-    "19": 0.3773,
-    "20": 0.1647,
-    "21": 0.0859,
+    "17": 0.1788,
+    "18": 0.0592,
+    "19": 0.2613,
+    "20": 0.0,
+    "21": 0.0,
     "22": 0.0747,
     "23": 0.1578,
     "24": 0.0557,
-    "25": 0.1013,
+    "25": 0.042,
     "26": 0.0,
     "27": 0.0,
     "28": 0.04,
-    "29": 0.0161,
+    "29": 0.0,
     "30": 0.0,
     "31": 0.1403,
-    "32": 0.0453,
-    "33": 0.1608,
+    "32": 0.0,
+    "33": 0.1167,
     "34": 0.0451,
-    "35": 0.0594,
+    "35": 0.0,
     "36": 0.0349,
-    "37": 0.1155,
-    "38": 0.14,
+    "37": 0.0992,
+    "38": 0.0934,
     "39": 0.0,
     "40": 0.0,
-    "41": 0.0667,
+    "41": 0.0334,
     "42": 0.0,
-    "43": 0.0602,
-    "44": 0.003,
+    "43": 0.0368,
+    "44": 0.0,
     "45": 0.0,
     "46": 0.0,
     "47": 0.0,
-    "48": 0.0133,
-    "49": 0.0461,
+    "48": 0.0,
+    "49": 0.0086,
     "50": 0.0266,
-    "51": 0.0662,
-    "52": 0.048,
-    "53": 0.0345,
-    "54": 0.0488,
-    "55": 0.0507,
-    "56": 0.0252,
-    "57": 0.0598,
-    "58": 0.0662,
-    "59": 0.054,
-    "60": 0.1755,
-    "61": 0.034,
-    "62": 0.0518,
-    "63": 0.0726,
-    "64": 0.1166,
-    "65": 0.0915,
-    "66": 0.2085,
-    "67": 0.0212,
-    "68": 0.0564,
-    "69": 0.0307,
-    "70": 0.0421
+    "51": 0.0,
+    "52": 0.0,
+    "53": 0.0115,
+    "54": 0.0048,
+    "55": 0.0204,
+    "56": 0.0156,
+    "57": 0.0195,
+    "58": 0.0112,
+    "59": 0.0247,
+    "60": 0.0419,
+    "61": 0.0,
+    "62": 0.0065,
+    "63": 0.0161,
+    "64": 0.0218,
+    "65": 0.0216,
+    "66": 0.0189,
+    "67": 0.0136,
+    "68": 0.0093,
+    "69": 0.0229,
+    "70": 0.005
   },
   "pct_active_by_age": {
     "0": 0.0,
@@ -561,70 +556,70 @@
     "13": 0.0,
     "14": 0.0,
     "15": 0.0,
-    "16": 0.0014,
-    "17": 0.4919,
-    "18": 0.0641,
-    "19": 0.2876,
-    "20": 0.1473,
-    "21": 0.0714,
-    "22": 0.051,
-    "23": 0.0376,
-    "24": 0.0063,
-    "25": 0.0143,
-    "26": 0.0613,
-    "27": 0.0444,
-    "28": 0.0621,
-    "29": 0.0521,
-    "30": 0.0472,
-    "31": 0.0512,
-    "32": 0.045,
-    "33": 0.0968,
-    "34": 0.1593,
-    "35": 0.0778,
-    "36": 0.0497,
-    "37": 0.0311,
-    "38": 0.043,
-    "39": 0.0098,
-    "40": 0.0067,
-    "41": 0.1553,
-    "42": 0.0514,
-    "43": 0.1536,
-    "44": 0.0033,
-    "45": 0.0013,
+    "16": 0.0012,
+    "17": 0.3031,
+    "18": 0.0402,
+    "19": 0.2821,
+    "20": 0.0739,
+    "21": 0.0523,
+    "22": 0.0282,
+    "23": 0.036,
+    "24": 0.0165,
+    "25": 0.0202,
+    "26": 0.0583,
+    "27": 0.0429,
+    "28": 0.048,
+    "29": 0.0821,
+    "30": 0.0145,
+    "31": 0.0689,
+    "32": 0.0135,
+    "33": 0.0477,
+    "34": 0.0393,
+    "35": 0.0457,
+    "36": 0.0424,
+    "37": 0.0407,
+    "38": 0.0231,
+    "39": 0.0163,
+    "40": 0.0088,
+    "41": 0.0141,
+    "42": 0.0497,
+    "43": 0.124,
+    "44": 0.0036,
+    "45": 0.0016,
     "46": 0.0022,
     "47": 0.0,
-    "48": 0.0238,
-    "49": 0.0333,
-    "50": 0.0045,
-    "51": 0.0429,
-    "52": 0.0912,
-    "53": 0.012,
-    "54": 0.0159,
-    "55": 0.0338,
-    "56": 0.0354,
-    "57": 0.0173,
-    "58": 0.1411,
-    "59": 0.0375,
-    "60": 0.2627,
-    "61": 0.0021,
-    "62": 0.0269,
-    "63": 0.0193,
-    "64": 0.1155,
-    "65": 0.107,
-    "66": 0.3282,
-    "67": 0.0367,
-    "68": 0.0543,
-    "69": 0.0057,
-    "70": 0.0185,
-    "71": 0.0097,
-    "72": 0.0105,
-    "73": 0.0093,
-    "74": 0.0007,
-    "75": 0.0245,
-    "76": 0.0191,
-    "77": 0.22,
-    "78": 0.0302,
-    "79": 0.0019,
-    "80": 0.0688
+    "48": 0.0,
+    "49": 0.0006,
+    "50": 0.0047,
+    "51": 0.0007,
+    "52": 0.0005,
+    "53": 0.0068,
+    "54": 0.003,
+    "55": 0.0117,
+    "56": 0.0112,
+    "57": 0.0208,
+    "58": 0.0006,
+    "59": 0.0004,
+    "60": 0.0053,
+    "61": 0.0,
+    "62": 0.0022,
+    "63": 0.0007,
+    "64": 0.0054,
+    "65": 0.0078,
+    "66": 0.025,
+    "67": 0.0402,
+    "68": 0.0539,
+    "69": 0.0032,
+    "70": 0.0181,
+    "71": 0.0067,
+    "72": 0.0047,
+    "73": 0.0017,
+    "74": 0.0001,
+    "75": 0.0005,
+    "76": 0.021,
+    "77": 0.0014,
+    "78": 0.0203,
+    "79": 0.0018,
+    "80": 0.0212
   }
 }

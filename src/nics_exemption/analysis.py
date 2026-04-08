@@ -69,20 +69,20 @@ def build_nics_by_age(df: MicroDataFrame) -> list[dict]:
         (50, 64, "50-64"),
         (65, 100, "65+"),
     ]
+    has_recently = "joined_labour_force_recently" in df.columns
     rows = []
     for lo, hi, label in age_bins:
         mask = (df.age.values >= lo) & (df.age.values <= hi)
-        has_recently = "joined_labour_force_recently" in df.columns
         if has_recently:
-            recently_active = mask & (
-                df.joined_labour_force_recently.values > 0.5
+            recently_active = mask * np.clip(
+                df.joined_labour_force_recently.values, 0, 1
             )
         else:
-            recently_active = np.zeros_like(mask)
+            recently_active = np.zeros_like(mask, dtype=float)
 
         n_total = MicroSeries(mask.astype(float), weights=w).sum()
         n_recently_active = MicroSeries(
-            recently_active.astype(float), weights=w
+            recently_active, weights=w
         ).sum()
         nics_total = (
             MicroSeries(df.ni_employer.values * mask, weights=w).sum() / 1e9
@@ -99,7 +99,7 @@ def build_nics_by_age(df: MicroDataFrame) -> list[dict]:
             "n_total": round(float(n_total)),
             "n_recently_active": round(float(n_recently_active)),
             "pct_recently_active": round(
-                float(n_recently_active / max(n_total, 1) * 100), 1
+                float(n_recently_active / n_total * 100), 1
             ),
             "total_nics_bn": round(float(nics_total), 2),
             "nics_exemption_cost_bn": round(float(nics_recently_active), 2),
@@ -128,15 +128,15 @@ def build_nics_by_income_decile(df: MicroDataFrame) -> list[dict]:
     for d in range(1, 11):
         d_mask = (income_decile == d) & employed
         if has_recently:
-            d_recently = d_mask & (
-                df.joined_labour_force_recently.values > 0.5
+            d_recently = d_mask * np.clip(
+                df.joined_labour_force_recently.values, 0, 1
             )
         else:
-            d_recently = np.zeros_like(d_mask)
+            d_recently = np.zeros_like(d_mask, dtype=float)
 
         n_in_decile = MicroSeries(d_mask.astype(float), weights=w).sum()
         n_recently_active = MicroSeries(
-            d_recently.astype(float), weights=w
+            d_recently, weights=w
         ).sum()
         nics_total = (
             MicroSeries(df.ni_employer.values * d_mask, weights=w).sum() / 1e9
@@ -244,7 +244,9 @@ def compute_cost_effectiveness(
     n_target_employees : int
         Number of employees qualifying for the exemption.
     """
-    cost_per_employee = exemption_cost_bn * 1e9 / max(n_target_employees, 1)
+    if n_target_employees <= 0:
+        raise ValueError("n_target_employees must be positive.")
+    cost_per_employee = exemption_cost_bn * 1e9 / n_target_employees
     return {
         "total_cost_bn": round(exemption_cost_bn, 2),
         "n_target_employees": n_target_employees,
@@ -257,8 +259,9 @@ def compute_cost_effectiveness(
 
 def estimate_employment_entry_effect(
     exemption_cost_bn: float,
-    elasticity: float = 0.2,
-    n_inactive: int = 0,
+    elasticity: float,
+    n_inactive: int,
+    employer_nics_rate: float,
 ) -> dict:
     """Estimate additional employment entries from the NICs exemption.
 
@@ -274,19 +277,24 @@ def estimate_employment_entry_effect(
         Responsiveness of hiring to cost reduction (default 0.2).
     n_inactive : int
         Size of the economically inactive population of working age.
+    employer_nics_rate : float
+        Employer NICs rate from PolicyEngine parameters.
     """
-    # Average employer NICs rate is roughly 13.8% on earnings above threshold
-    # Exemption removes this, so effective cost reduction ~ 13.8%
-    EMPLOYER_NICS_RATE = 0.138
-    hiring_increase_pct = elasticity * EMPLOYER_NICS_RATE
+    if n_inactive <= 0:
+        raise ValueError("n_inactive must be positive.")
+    if employer_nics_rate <= 0:
+        raise ValueError("employer_nics_rate must be positive.")
+    hiring_increase_pct = elasticity * employer_nics_rate
     additional_entries = round(n_inactive * hiring_increase_pct)
+    if additional_entries <= 0:
+        raise ValueError("additional_entries must be positive.")
 
     return {
         "elasticity": elasticity,
         "hiring_increase_pct": round(hiring_increase_pct * 100, 2),
         "additional_entries": additional_entries,
         "cost_per_additional_entry": round(
-            exemption_cost_bn * 1e9 / max(additional_entries, 1)
+            exemption_cost_bn * 1e9 / additional_entries
         ),
     }
 
@@ -308,7 +316,7 @@ def build_full_analysis(df: MicroDataFrame) -> dict:
     # Total exemption cost: NICs for recently-active employees
     has_recently = "joined_labour_force_recently" in df.columns
     if has_recently:
-        recently_active = df.joined_labour_force_recently.values > 0.5
+        recently_active = np.clip(df.joined_labour_force_recently.values, 0, 1)
         exemption_cost_bn = float(
             MicroSeries(
                 df.ni_employer.values * recently_active, weights=df.weights
@@ -318,7 +326,7 @@ def build_full_analysis(df: MicroDataFrame) -> dict:
         n_target = round(
             float(
                 MicroSeries(
-                    recently_active.astype(float), weights=df.weights
+                    recently_active, weights=df.weights
                 ).sum()
             )
         )

@@ -119,6 +119,14 @@ function CaveatsToggle() {
 
 function SensitivityToggle({ behavioural }) {
   const [open, setOpen] = useState(false);
+  function displayNetCost(row) {
+    if (!row) return null;
+    const staticCost = row.static_cost_bn;
+    if (staticCost == null || row.fiscal_offset_bn == null) {
+      return row.net_cost_bn;
+    }
+    return Number((staticCost - row.fiscal_offset_bn).toFixed(1));
+  }
   return (
     <div className="section-card overflow-x-auto">
       <button
@@ -157,6 +165,7 @@ function SensitivityToggle({ behavioural }) {
             {["low", "central", "high"].map((key) => {
               const row = behavioural[key];
               if (!row) return null;
+              const netCost = displayNetCost(row);
               return (
                 <tr key={key} className={key === "central" ? "bg-slate-50 font-semibold" : ""}>
                   <td className="font-medium capitalize">{key}</td>
@@ -164,7 +173,7 @@ function SensitivityToggle({ behavioural }) {
                   <td style={{ textAlign: "right" }}>{formatCount(row.n_new_entrants)}</td>
                   <td style={{ textAlign: "right" }}>{formatBn(row.fiscal_offset_bn)}</td>
                   <td style={{ textAlign: "right" }}>
-                    {row.net_cost_bn > 0 ? "-" : "+"}{formatBn(Math.abs(row.net_cost_bn))}
+                    {netCost > 0 ? "-" : "+"}{formatBn(Math.abs(netCost))}
                   </td>
                 </tr>
               );
@@ -261,6 +270,19 @@ export default function ReformTab({ data }) {
   const byDecileBehav = data?.reform?.nics_exemption?.by_income_decile_behavioural || [];
   const byWealthDecileBehav = data?.reform?.nics_exemption?.by_wealth_decile_behavioural || [];
   const nInactive = data?.baseline?.summary?.n_economically_inactive || 0;
+  const displayNetCost =
+    summary?.cost_bn != null && central.fiscal_offset_bn != null
+      ? Number((summary.cost_bn - central.fiscal_offset_bn).toFixed(1))
+      : central.net_cost_bn;
+  const behaviouralWithStatic = useMemo(() => {
+    if (!summary || summary.cost_bn == null) return behavioural;
+    return Object.fromEntries(
+      Object.entries(behavioural).map(([key, value]) => [
+        key,
+        { ...value, static_cost_bn: summary.cost_bn },
+      ])
+    );
+  }, [behavioural, summary]);
 
   const [breakdownDim, setBreakdownDim] = useState("age");
   const [behaviouralDim, setBehaviouralDim] = useState("age");
@@ -275,7 +297,7 @@ export default function ReformTab({ data }) {
     <div className="space-y-8">
       <SectionHeading
         title="NICs exemption reform analysis"
-        description={<>Estimated cost of exempting employers from NICs on all employees who transitioned from economic inactivity into work within the last 5 quarters (15 months), regardless of disability status. Figures are based on PolicyEngine UK microsimulation with <a href="https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/methodologies/labourforcesurveyuserguidance" target="_blank" rel="noreferrer" className="underline">LFS longitudinal data</a> imputed onto the Enhanced FRS.</>}
+        description={<>Estimated cost of exempting employers from NICs on employees who already transitioned from economic inactivity into work within the last 5 quarters (15 months), regardless of disability status. Behavioural estimates are separate: they estimate additional entries from the currently inactive pool. Figures are based on PolicyEngine UK microsimulation with <a href="https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/methodologies/labourforcesurveyuserguidance" target="_blank" rel="noreferrer" className="underline">LFS longitudinal data</a> imputed onto the Enhanced FRS.</>}
       />
 
       {/* ================================================================ */}
@@ -290,7 +312,7 @@ export default function ReformTab({ data }) {
             {summary?.cost_bn != null ? formatBn(summary.cost_bn) : "--"}
           </div>
           <div className="mt-2 text-sm text-slate-500">
-            Foregone employer NICs revenue per year
+            Foregone employer NICs revenue on workers who already transitioned into work
           </div>
         </div>
         <div className="metric-card">
@@ -374,7 +396,7 @@ export default function ReformTab({ data }) {
       <div className="border-t border-slate-200 pt-4">
         <SectionHeading
           title="Behavioural impact (labour supply response)"
-          description={<>If employers pass the NICs saving on as higher wages, some currently inactive people would find it worthwhile to take a job. We model this in five steps: <strong>(1)</strong> impute a potential wage for each inactive person (weighted median of employed people in the same age band and gender from the FRS); <strong>(2)</strong> calculate the employer NICs on that wage (rate and secondary threshold from PolicyEngine parameters); <strong>(3)</strong> assume full pass-through &mdash; the worker&apos;s gross pay rises by the NICs saving &mdash; and compute the net income gain after an assumed 40% effective marginal tax rate (income tax + employee NICs + benefit withdrawal); <strong>(4)</strong> express the net NICs saving as a percentage of household net income if working without the exemption; <strong>(5)</strong> apply an extensive-margin participation elasticity: <em>P(enter work) = elasticity &times; %&Delta; net income</em>, clipped to [0,&thinsp;1]. We run three scenarios (low&thinsp;=&thinsp;0.10, central&thinsp;=&thinsp;0.25, high&thinsp;=&thinsp;0.40). This is purely extensive margin &mdash; no intensive-margin (hours) response is modelled, and already-employed workers have no behavioural response. The fiscal offset captures the extra income tax paid and benefits no longer claimed by these new workers.</>}
+          description={<>If employers pass the NICs saving on as higher wages, some currently inactive people may enter work. We model this in five steps: <strong>(1)</strong> impute a potential wage for each working-age inactive person using the weighted median wage of employed people in the same age band and gender from the FRS; <strong>(2)</strong> calculate employer NICs on that wage using the rate and secondary threshold from PolicyEngine parameters; <strong>(3)</strong> assume full pass-through, so gross pay rises by the employer NICs saving; <strong>(4)</strong> convert that saving to a net income gain using the effective marginal rate specified for the run, which combines income tax, employee NICs, and benefit withdrawal; <strong>(5)</strong> express the gain as a share of household net income if working without the exemption and apply an extensive-margin participation elasticity: <em>P(enter work) = elasticity &times; %&Delta; net income</em>, clipped to [0,&thinsp;1]. This is an extensive-margin estimate only: hours responses are not modelled, and already-employed workers have no behavioural response. The fiscal offset is approximated as extra tax revenue plus reduced benefit entitlement using the same effective marginal rate.</>}
         />
         <CaveatsToggle />
       </div>
@@ -389,7 +411,7 @@ export default function ReformTab({ data }) {
           </div>
           <div className="mt-2 text-sm text-slate-500">
             {central.n_new_entrants && nInactive
-              ? `${(central.n_new_entrants / nInactive * 100).toFixed(1)}% of ${formatCount(nInactive)} inactive`
+              ? `${(central.n_new_entrants / nInactive * 100).toFixed(1)}% of ${formatCount(nInactive)} currently inactive people`
               : "Inactive people entering work"}
           </div>
         </div>
@@ -410,7 +432,7 @@ export default function ReformTab({ data }) {
           </div>
           <div className="mt-2 text-3xl font-bold tracking-tight text-emerald-700">
             {central.net_cost_bn != null
-              ? `${central.net_cost_bn > 0 ? "-" : "+"}${formatBn(Math.abs(central.net_cost_bn))}`
+              ? `${displayNetCost > 0 ? "-" : "+"}${formatBn(Math.abs(displayNetCost))}`
               : "--"}
           </div>
           <div className="mt-2 text-sm text-slate-500">
@@ -449,7 +471,7 @@ export default function ReformTab({ data }) {
 
       {/* Sensitivity table — expandable */}
       {Object.keys(behavioural).length > 0 && (
-        <SensitivityToggle behavioural={behavioural} />
+        <SensitivityToggle behavioural={behaviouralWithStatic} />
       )}
 
 
@@ -534,7 +556,7 @@ export default function ReformTab({ data }) {
           <div className="border-t border-slate-200 pt-4">
             <SectionHeading
               title="Comparison: NICs exemption vs disability benefit cuts"
-              description={<>The government&apos;s <a href="https://www.gov.uk/government/consultations/pathways-to-work-reforming-benefits-and-support-to-get-britain-working-green-paper/spring-statement-2025-health-and-disability-benefit-reforms-impacts" target="_blank" rel="noreferrer" className="underline">proposed disability benefit reforms</a> (PIP eligibility tightening, UC health element freeze, projected to save &pound;4.8bn by 2029/30) compared with the NICs exemption. We approximate the benefit cuts as a 10% reduction in PIP/DLA payments for modelling purposes. <strong>Note:</strong> the NICs exemption targets all recently-inactive people (disabled and non-disabled), while benefit cuts only affect disabled benefit recipients. The NICs fiscal cost is net of the fiscal offset from new workers (static cost minus extra tax and benefit savings); the benefit cuts saving is gross. Employment figures for the NICs exemption use participation elasticities (probabilistic); benefit cuts use the same framework but with an income-effect elasticity of 0.22, from <a href="https://doi.org/10.1016/j.jpubeco.2012.01.006" target="_blank" rel="noreferrer" className="underline">Marie &amp; Vall Castell&oacute; (2012)</a>.</>}
+              description={<>The government&apos;s <a href="https://www.gov.uk/government/consultations/pathways-to-work-reforming-benefits-and-support-to-get-britain-working-green-paper/spring-statement-2025-health-and-disability-benefit-reforms-impacts" target="_blank" rel="noreferrer" className="underline">proposed disability benefit reforms</a> (PIP eligibility tightening, UC health element freeze, projected to save &pound;4.8bn by 2029/30) compared with the NICs exemption. We approximate the benefit cuts as a 10% reduction in PIP/DLA payments for modelling purposes. <strong>Note:</strong> static NICs exemption figures cover workers who already transitioned from inactivity into work; behavioural figures estimate additional entries from the currently inactive pool. The NICs fiscal cost is net of the fiscal offset from new workers (static cost minus extra tax and benefit savings); the benefit cuts saving is gross. Employment figures for the NICs exemption use participation elasticities (probabilistic); benefit cuts use the same framework but with an income-effect elasticity of 0.22, from <a href="https://doi.org/10.1016/j.jpubeco.2012.01.006" target="_blank" rel="noreferrer" className="underline">Marie &amp; Vall Castell&oacute; (2012)</a>.</>}
             />
           </div>
 
@@ -574,7 +596,7 @@ export default function ReformTab({ data }) {
                 <tr>
                   <td className="font-medium">Net fiscal cost / saving <span className="text-xs font-normal text-slate-400">(behavioural)</span></td>
                   <td style={{ textAlign: "right" }} className="text-emerald-700 font-semibold">
-                    {central.net_cost_bn != null ? `${formatBn(central.net_cost_bn)} cost` : "--"}
+                    {displayNetCost != null ? `${formatBn(displayNetCost)} cost` : "--"}
                   </td>
                   <td style={{ textAlign: "right" }}>
                     {formatBn(counterfactual.fiscal_saving_bn)} saving

@@ -118,8 +118,17 @@ def run(args: argparse.Namespace) -> None:
     person_weights = baseline.calculate("person_weight", YEAR)
     employment_status = baseline.calculate("employment_status", YEAR).values
     is_disabled_benefits = baseline.calculate("is_disabled_for_benefits", YEAR).values
+    gender_arr = baseline.calculate("gender", YEAR).values
 
-    working_age = (age >= 16) & (age <= 64)
+    # Working age: 16 (legal minimum work age) up to (but not including) state
+    # pension age. SPA is read from PolicyEngine UK's parameter database for
+    # the modelled year — for 2026 this is 66 for both men and women.
+    _params = baseline.tax_benefit_system.parameters(f"{YEAR}-01-01")
+    SPA_MALE = int(_params.gov.dwp.state_pension.age.male)
+    SPA_FEMALE = int(_params.gov.dwp.state_pension.age.female)
+    spa_per_person = np.where(gender_arr == "MALE", SPA_MALE, SPA_FEMALE)
+    working_age = (age >= 16) & (age < spa_per_person)
+    SPA = max(SPA_MALE, SPA_FEMALE)  # used for dashboard age-bin labels
 
     # Economically inactive: working-age people in non-active employment statuses
     inactive_statuses = [
@@ -227,9 +236,9 @@ def run(args: argparse.Namespace) -> None:
     print(f"  % of inactive who are disabled: {pct_inactive_disabled}%")
     print(f"  Avg employer NICs per worker: £{avg_nics_per_worker:,}")
 
-    # Inactivity reasons from LFS (most recent quarter, working-age)
+    # Inactivity reasons from LFS (most recent quarter, working-age — same SPA cutoff)
     lfs_age = lfs["AGE5"]
-    lfs_working_age = (lfs_age >= 16) & (lfs_age <= 64)
+    lfs_working_age = (lfs_age >= 16) & (lfs_age < SPA)
     lfs_inactive_col = "INCAC055"
     lfs_inactive_mask = (lfs[lfs_inactive_col] >= 6) & lfs_working_age
 
@@ -373,12 +382,16 @@ def run(args: argparse.Namespace) -> None:
     # ── Step 7: Build age-group breakdowns ─────────────────────────────────
 
     print("\nStep 7: Building age-group breakdowns...")
+    # Age bins for the dashboard. The bottom of the post-SPA bin is read from
+    # PolicyEngine so the "above-state-pension-age" group adjusts automatically
+    # as SPA legislation changes.
+    above_spa_label = f"{SPA}+"
     age_bins = [
         (16, 24, "16-24"),
         (25, 34, "25-34"),
         (35, 49, "35-49"),
-        (50, 64, "50-64"),
-        (65, 100, "65+"),
+        (50, SPA - 1, f"50-{SPA - 1}"),
+        (SPA, 120, above_spa_label),
     ]
 
     age_data = []
@@ -420,7 +433,9 @@ def run(args: argparse.Namespace) -> None:
     print("\nStep 7b: Building breakdowns by gender, country, family type...")
 
     is_recent = recent_prob
-    is_working_age = (efrs_imp.age >= 16) & (efrs_imp.age <= 64)
+    # Mirror the SPA-aware working-age definition used elsewhere; we already
+    # have it as `working_age` (np.ndarray), reuse it directly.
+    is_working_age = working_age
 
     def _build_breakdown(group_col, group_vals):
         rows = []
@@ -494,14 +509,15 @@ def run(args: argparse.Namespace) -> None:
     #   4. Compute % change in household net income if they took the job
     #   5. Apply extensive-margin participation elasticity → P(enter work)
 
-    _person_pop = baseline.populations["person"]
     hh_net_income = _person_pop.household("household_net_income", YEAR).astype(float)
 
     # 9a — impute potential wages for inactive people from employed distribution
     emp_income = baseline.calculate("employment_income", YEAR).values.astype(float)
-    gender_arr = baseline.calculate("gender", YEAR).values
 
-    _age_bands = [(16, 24), (25, 34), (35, 49), (50, 64)]
+    # Wage-imputation age bands span legal minimum work age up to SPA-1.
+    # The intermediate bands (24/34/49) are presentational; the upper bound
+    # tracks SPA so the bands stay correctly aligned with working age.
+    _age_bands = [(16, 24), (25, 34), (35, 49), (50, SPA - 1)]
     _median_wages = {}
     for lo, hi in _age_bands:
         for g in ["MALE", "FEMALE"]:
@@ -546,13 +562,21 @@ def run(args: argparse.Namespace) -> None:
     EFFECTIVE_MARGINAL_RATE = args.effective_marginal_rate
     net_nics_saving = potential_nics * (1 - EFFECTIVE_MARGINAL_RATE)
     net_income_if_working = hh_net_income + potential_wage * (1 - EFFECTIVE_MARGINAL_RATE)
-    pct_change_income = np.where(
-        net_income_if_working > 0,
-        net_nics_saving / net_income_if_working,
-        0.0,
-    )
-    # Only for inactive working-age people
-    pct_change_income = np.where(is_inactive, pct_change_income, 0.0)
+    # Compute the % change in net income only for inactive working-age people —
+    # the only population the policy applies to. A small number of inactive
+    # people (typically tens out of millions) have non-positive
+    # `net_income_if_working` due to extreme negative imputed household income
+    # in PolicyEngine UK (e.g. self-employed loss imputations); we explicitly
+    # exclude them and report the count instead of silently masking the divide.
+    behav_mask = is_inactive & (net_income_if_working > 0)
+    n_excluded_behav = int((is_inactive & ~behav_mask).sum())
+    if n_excluded_behav:
+        print(
+            f"  Excluded {n_excluded_behav:,} inactive working-age people from "
+            "behavioural calculation (non-positive net_income_if_working)."
+        )
+    pct_change_income = np.zeros_like(potential_wage)
+    pct_change_income[behav_mask] = net_nics_saving[behav_mask] / net_income_if_working[behav_mask]
 
     # 9d — participation elasticity
     ELASTICITIES = {
@@ -717,23 +741,30 @@ def run(args: argparse.Namespace) -> None:
     # member), which is exactly the input shape we need downstream.
     hh_benefit_loss = _person_pop.household.sum(benefit_loss)
 
-    # This reduces household net income → negative income effect
-    # Some may be forced to seek work (income effect on participation)
-    pct_change_cf = np.where(
-        hh_net_income > 0,
-        -hh_benefit_loss / hh_net_income,
-        0.0,
-    )
+    # Only disabled inactive working-age people experience the income-effect
+    # response. Non-disabled and non-inactive people don't receive PIP/DLA so
+    # the cut doesn't affect them. A small number of edge-case households have
+    # non-positive net income in PolicyEngine UK; we exclude them explicitly
+    # rather than silently masking the divide.
+    is_disabled_inactive = is_inactive & is_disabled_broad & working_age
+    cf_mask = is_disabled_inactive & (hh_net_income > 0)
+    n_excluded_cf = int((is_disabled_inactive & ~cf_mask).sum())
+    if n_excluded_cf:
+        print(
+            f"  Excluded {n_excluded_cf:,} disabled-inactive people from "
+            "counterfactual (non-positive household net income)."
+        )
+    pct_change_cf = np.zeros_like(hh_net_income)
+    pct_change_cf[cf_mask] = -hh_benefit_loss[cf_mask] / hh_net_income[cf_mask]
+
     # Income effect: lower income → may need to work (positive participation response
     # to income loss). Use same elasticity framework but note the sign:
     # A negative income shock with positive participation elasticity means people
     # are pushed into the labour market.
     BENEFIT_CUT_ELAST = args.benefit_cut_elasticity
-
-    # Only disabled inactive people affected
-    is_disabled_inactive = is_inactive & is_disabled_broad & working_age
     prob_enter_cf = np.clip(BENEFIT_CUT_ELAST * np.abs(pct_change_cf), 0, 1)
-    prob_enter_cf = np.where(is_disabled_inactive, prob_enter_cf, 0.0)
+    # pct_change_cf is already zero outside is_disabled_inactive, so prob_enter_cf
+    # naturally restricts to the affected population — no extra mask needed.
 
     n_entering_cf = float(MicroSeries(prob_enter_cf.astype(float), weights=person_weights).sum())
     fiscal_saving_cf = (

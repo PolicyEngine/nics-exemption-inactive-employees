@@ -53,43 +53,6 @@ const NICS_THRESHOLDS = [
   { band: "Apprenticeship Levy", range: "Pay bill > \u00A33m", rate: "0.5%", url: "https://www.gov.uk/guidance/pay-apprenticeship-levy" },
 ];
 
-function buildOfficialComparison(summary) {
-  return [
-    {
-      metric: "Economically inactive (working age)",
-      model: summary?.n_economically_inactive ? formatCount(summary.n_economically_inactive) : "--",
-      official: "~9.0m",
-      source: "ONS LFS",
-      sourceUrl: "https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/bulletins/employmentintheuk/latest",
-      note: "FRS under-counts inactive vs LFS",
-    },
-    {
-      metric: "Disabled (working age)",
-      model: summary?.n_disabled ? formatCount(summary.n_disabled) : "--",
-      official: "~10.4m",
-      source: "DWP 2025",
-      sourceUrl: "https://www.gov.uk/government/statistics/the-employment-of-disabled-people-2025",
-      note: "Model uses benefit receipt + employment status; official uses Equality Act self-report. FRS collects Equality Act data but PolicyEngine does not yet load it.",
-    },
-    {
-      metric: "Total employer NICs",
-      model: summary?.total_employer_nics_bn != null ? formatBn(summary.total_employer_nics_bn) : "--",
-      official: "\u00A3145.8bn",
-      source: "OBR March 2025",
-      sourceUrl: "https://obr.uk/forecasts-in-depth/tax-by-tax-spend-by-spend/national-insurance-contributions-nics/",
-      note: "Both are Class 1 secondary only. 3.8% gap reflects FRS-based microsimulation variance vs HMRC admin data.",
-    },
-    {
-      metric: "Disability benefits spending",
-      model: summary?.total_disability_benefits_bn != null ? formatBn(summary.total_disability_benefits_bn) : "--",
-      official: "\u00A355.1bn",
-      source: "DWP Spring Statement 2025",
-      sourceUrl: "https://www.gov.uk/government/consultations/pathways-to-work-reforming-benefits-and-support-to-get-britain-working-green-paper/spring-statement-2025-health-and-disability-benefit-reforms-impacts",
-      note: "Official is 2025\u201326 forecast (\u00A351.2bn in 2024\u201325). Working-age incapacity & disability benefits only.",
-    },
-  ];
-}
-
 export default function BaselineTab({ data }) {
   const summary = getBaselineSummary(data);
   const byAge = getByAgeGroup(data, "baseline");
@@ -100,8 +63,6 @@ export default function BaselineTab({ data }) {
     if (!inactivityReasons.length) return [];
     return [...inactivityReasons].sort((a, b) => (b.count || 0) - (a.count || 0));
   }, [inactivityReasons]);
-
-  const officialComparison = useMemo(() => buildOfficialComparison(summary), [summary]);
 
   return (
     <div className="space-y-10">
@@ -276,7 +237,7 @@ export default function BaselineTab({ data }) {
             />
             <div className="h-[360px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={byAge}>
+                <BarChart data={byAge.filter((d) => !d.age_group?.endsWith("+"))}>
                   <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} />
                   <XAxis
                     dataKey="age_group"
@@ -387,51 +348,6 @@ export default function BaselineTab({ data }) {
         </div>
       )}
 
-      {/* ================================================================ */}
-      {/* SECTION 4: MODEL VS OFFICIAL STATISTICS                          */}
-      {/* ================================================================ */}
-      <div className="border-t border-slate-200 pt-10">
-        <SectionHeading
-          title="Model vs official statistics"
-          description="Comparison of PolicyEngine model estimates with published government statistics. Differences reflect definitional choices (e.g. benefit-receipt vs Equality Act disability) and the underlying survey (FRS vs LFS)."
-        />
-      </div>
-
-      <div className="section-card overflow-x-auto">
-        <table className="data-table" style={{ tableLayout: "fixed" }}>
-          <colgroup>
-            <col style={{ width: "30%" }} />
-            <col style={{ width: "15%" }} />
-            <col style={{ width: "15%" }} />
-            <col style={{ width: "15%" }} />
-            <col style={{ width: "25%" }} />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>Metric</th>
-              <th style={{ textAlign: "right" }}>Model</th>
-              <th style={{ textAlign: "right" }}>Official</th>
-              <th>Source</th>
-              <th>Note</th>
-            </tr>
-          </thead>
-          <tbody>
-            {officialComparison.map((row) => (
-              <tr key={row.metric}>
-                <td className="font-medium">{row.metric}</td>
-                <td style={{ textAlign: "right" }}>{row.model}</td>
-                <td style={{ textAlign: "right" }}>{row.official}</td>
-                <td>
-                  <a href={row.sourceUrl} target="_blank" rel="noreferrer" className="text-primary-700 underline">
-                    {row.source}
-                  </a>
-                </td>
-                <td className="text-xs text-slate-500">{row.note}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }

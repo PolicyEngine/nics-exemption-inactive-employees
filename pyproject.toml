@@ -28,7 +28,7 @@ dependencies = [
 
 [project.optional-dependencies]
 simulation = [
-  "policyengine-uk>=2.75.2",
+  "policyengine-uk>=2.88.10",
   "microimpute>=0.1.0",
 ]
 dev = [

@@ -21,22 +21,34 @@ uv venv --python 3.13 .venv
 source .venv/bin/activate
 uv pip install -e ".[simulation,dev]"
 
-python run_pipeline.py \
+# Hugging Face token with read access to
+# `policyengine/policyengine-uk-data-private` is required — the pipeline
+# fetches the latest enhanced-FRS microdata directly from there at runtime.
+# There is no local fallback.
+export HUGGING_FACE_TOKEN=hf_your_actual_token_here
+
+# Run via the package entry point (preferred)…
+python -m nics_exemption \
   --year 2026 \
   --lfs-path /path/to/lfs.tab \
   --effective-marginal-rate 0.4 \
-  --elasticity-low 0.27 \
-  --elasticity-central 0.40 \
-  --elasticity-high 0.53 \
+  --elasticity-low 0.1 \
+  --elasticity-central 0.25 \
+  --elasticity-high 0.4 \
   --benefit-cut-target-bn 4.8 \
   --benefit-cut-elasticity 0.22
+
+# …or the back-compat shim:
+# python run_pipeline.py …same args…
+# …or after `pip install -e .`, the console script:
+# nics-exemption-build …same args…
 ```
 
-`policyengine-uk` requires a Hugging Face token with access to the Enhanced FRS dataset:
-
-```bash
-export HUGGING_FACE_TOKEN=hf_xxx
-```
+The Hugging Face dataset URL the pipeline pulls from is hard-coded as
+`hf://policyengine/policyengine-uk-data-private/enhanced_frs_2023_24.h5`
+(latest, no version pin). To pin a specific data release for
+reproducibility, edit `DATASET_URL` in `src/nics_exemption/pipeline.py`
+and append `@<version>`.
 
 ### Dashboard
 

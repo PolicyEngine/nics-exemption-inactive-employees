@@ -6,11 +6,12 @@ Interactive dashboard estimating the cost, employment effects, and poverty impac
 
 ## What the dashboard covers
 
-- **Static cost**: foregone employer NICs on ~3M recently-active workers (£3.5bn/year)
+- **Static cost**: foregone employer NICs on ~1.7M recently-active workers (~£5.1bn/year)
+- **Household calculator**: the exact net-income effect of the exemption (under full pass-through) for a chosen household profile across salaries, computed directly in PolicyEngine UK
 - **Behavioural response**: labour supply estimates using a single population-wide extensive-margin participation elasticity of 0.25 from [Chetty, Guren, Manoli & Weber (2013)](https://rajchetty.com/wp-content/uploads/2021/04/ext_margin.pdf), with low (0.1) / high (0.4) scenarios bracketing the wider literature range
 - **Poverty impact**: people lifted out of poverty (BHC) via higher wages and new employment
-- **Counterfactual**: comparison with disability benefit cuts (10% PIP/DLA reduction)
-- **Breakdowns**: by age, gender, country, household type, income decile, and wealth decile
+- **Counterfactual**: comparison with disability benefit cuts (a uniform PIP/DLA reduction back-solved to the £4.8bn Spring Statement 2025 saving — ~17.5%)
+- **Breakdowns**: by age, gender, country, and household type, with behavioural new-entrant breakdowns by age and income decile
 
 ## Quick start
 
@@ -21,10 +22,11 @@ uv venv --python 3.13 .venv
 source .venv/bin/activate
 uv pip install -e ".[simulation,dev]"
 
-# Hugging Face token with read access to
-# `policyengine/policyengine-uk-data-private` is required — the pipeline
-# fetches the latest enhanced-FRS microdata directly from there at runtime.
-# There is no local fallback.
+# The pipeline loads the baseline through the unified `policyengine`
+# (`policyengine.py`) bundle via `managed_microsimulation()`, which resolves
+# the enhanced-FRS microdata version from the installed release manifest. If
+# that dataset is private, set a Hugging Face token with the required read
+# access before running. There is no local fallback.
 export HUGGING_FACE_TOKEN=hf_your_actual_token_here
 
 # Run via the package entry point (preferred)…
@@ -44,11 +46,10 @@ python -m nics_exemption \
 # nics-exemption-build …same args…
 ```
 
-The Hugging Face dataset URL the pipeline pulls from is hard-coded as
-`hf://policyengine/policyengine-uk-data-private/enhanced_frs_2023_24.h5`
-(latest, no version pin). To pin a specific data release for
-reproducibility, edit `DATASET_URL` in `src/nics_exemption/pipeline.py`
-and append `@<version>`.
+The dataset is not hard-coded: `managed_microsimulation()` pins it to the
+selection in the installed `policyengine` (`policyengine.py`) release bundle,
+so the enhanced-FRS microdata version tracks whatever that bundle certifies.
+To change the data release, install the corresponding `policyengine` version.
 
 ### Dashboard
 

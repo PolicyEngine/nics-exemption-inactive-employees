@@ -10,10 +10,6 @@ export function getReformSummary(data) {
   return data?.reform?.nics_exemption?.static || null;
 }
 
-export function getNicsExemption(data) {
-  return data?.nics_exemption || null;
-}
-
 export function getByAgeGroup(data, section = "baseline") {
   if (section === "baseline") {
     return data?.baseline?.by_age || [];
@@ -23,24 +19,6 @@ export function getByAgeGroup(data, section = "baseline") {
 
 export function getInactivityReasons(data) {
   return data?.baseline?.inactivity_reasons || [];
-}
-
-export function getPctActiveByAge(data) {
-  const raw = data?.pct_active_by_age;
-  if (!raw) return [];
-  return Object.entries(raw)
-    .map(([age, pct]) => ({ age: Number(age), pct_active: pct }))
-    .filter((d) => d.age >= 16 && d.age <= 70)
-    .sort((a, b) => a.age - b.age);
-}
-
-export function getPctActiveByAgeLfs(data) {
-  const raw = data?.pct_active_by_age_lfs;
-  if (!raw) return [];
-  return Object.entries(raw)
-    .map(([age, pct]) => ({ age: Number(age), pct_active: pct }))
-    .filter((d) => d.age >= 16 && d.age <= 70)
-    .sort((a, b) => a.age - b.age);
 }
 
 export function getCombinedPctActiveByAge(data) {

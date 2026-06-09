@@ -29,7 +29,7 @@ CHILD_AGE = 5
 RENTER_ANNUAL_RENT = 9000
 CHILDREN_OPTIONS = (0, 1, 2)
 
-# Gross-salary grid the net-income curve is sampled on (£5,000 steps). The grid
+# Gross-salary grid the net-income curve is sampled on (£2,000 steps). The grid
 # runs past SALARY_MAX so the dashboard can interpolate net income at
 # (salary + employer-NICs saving) — which sits above the salary itself — without
 # clamping at the top of the range. The dashboard only *shows* salaries up to
@@ -82,8 +82,7 @@ def _components(sim, year):
 def gross_grid():
     """Uniform £2,000 salary grid the curves are sampled on."""
     return [
-        round(GRID_MIN + (GRID_MAX - GRID_MIN) * i / (GRID_COUNT - 1))
-        for i in range(GRID_COUNT)
+        round(GRID_MIN + (GRID_MAX - GRID_MIN) * i / (GRID_COUNT - 1)) for i in range(GRID_COUNT)
     ]
 
 
@@ -146,7 +145,12 @@ def build_person_calculator_lookup(year, employer_rate, secondary_threshold_annu
     grid = gross_grid()
 
     combos = product(
-        REGION_BY_GROUP, (False, True), (False, True), CHILDREN_OPTIONS, (False, True), (False, True)
+        REGION_BY_GROUP,
+        (False, True),
+        (False, True),
+        CHILDREN_OPTIONS,
+        (False, True),
+        (False, True),
     )
     args = [(year,) + combo for combo in combos]
 

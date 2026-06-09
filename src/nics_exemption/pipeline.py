@@ -909,9 +909,7 @@ def run(args: argparse.Namespace) -> None:
     # ── Step 11c: Per-person net-income lookup for the dashboard calculator ─
 
     print("\nStep 11c: Building per-person net-income lookup (PolicyEngine UK)...")
-    person_calculator = build_person_calculator_lookup(
-        YEAR, NICS_RATE, round(SECONDARY_THRESHOLD)
-    )
+    person_calculator = build_person_calculator_lookup(YEAR, NICS_RATE, round(SECONDARY_THRESHOLD))
     print(f"  Built {len(person_calculator['profiles'])} household profiles.")
 
     # ── Step 12: Write results JSON ───────────────────────────────────────

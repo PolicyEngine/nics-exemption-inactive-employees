@@ -1,11 +1,10 @@
 export default function MethodologyTab({ data }) {
-  const emr = data?.settings?.effective_marginal_rate;
-  const emrPct = emr != null ? `${Math.round(emr * 100)}%` : "40%";
+  const emrPct = `${Math.round(data.settings.effective_marginal_rate * 100)}%`;
   return (
     <div className="space-y-8">
       <div className="section-card">
         <div className="eyebrow text-slate-500">Overview</div>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+        <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
           How the model works
         </h2>
         <p className="mt-4 text-sm leading-7 text-slate-600">
@@ -24,21 +23,29 @@ export default function MethodologyTab({ data }) {
           probabilities using a single population-wide extensive-margin participation
           elasticity of <strong>0.25</strong> from{" "}
           <a href="https://rajchetty.com/wp-content/uploads/2021/04/ext_margin.pdf" target="_blank" rel="noreferrer" className="underline">Chetty, Guren, Manoli &amp; Weber (2013)</a>{" "}
-          — the canonical meta-analysis estimate of the steady-state extensive-margin elasticity
-          used as the headline calibration across modern public-finance work.
-          All figures are for the {data?.year || "2026"} fiscal year.
+          — the meta-analysis estimate of the steady-state extensive-margin elasticity,
+          used as the headline calibration in public-finance work.
+          All figures are for the {data.year}–{(data.year + 1) % 100} tax year.
+        </p>
+        <p className="mt-4 text-sm leading-7 text-slate-600">
+          The reform tab&apos;s <strong>Household</strong> view runs a separate calculation:
+          for each chosen household profile (country, composition, children, housing, disability,
+          age) it computes net household income across a salary grid in PolicyEngine UK, so the
+          worker&apos;s share of the pass-through reflects income tax, employee NICs and the
+          Universal Credit / Pension Credit taper rather than the flat marginal rate used for the
+          population-wide behavioural estimates.
         </p>
         <h3 className="mt-6 text-lg font-semibold text-slate-900">
-          Key assumption: full pass-through of NICs to wages
+          Assumption: full pass-through of NICs to wages
         </h3>
         <p className="mt-4 text-sm leading-7 text-slate-600">
-          We assume employer NICs savings are fully passed through as higher wages,
-          the standard incidence assumption supported by{" "}
+          We pass the full employer NICs saving through to the worker as higher wages,
+          the incidence assumption in{" "}
           <a href="https://eml.berkeley.edu/~saez/saez-matsaganis-tsakloglouQJE11greecetax.pdf" target="_blank" rel="noreferrer" className="underline">Saez, Matsaganis &amp; Tsakloglou (2012, QJE)</a>.
           The{" "}
           <a href="https://obr.uk/efo/economic-and-fiscal-outlook-october-2024/" target="_blank" rel="noreferrer" className="underline">OBR (October 2024 EFO, paragraph 3.11)</a>{" "}
-          assumes about 60% pass-through in the short term rising to 76% by 2027–28, so our full-pass-through estimates are an upper bound.
-          The effective marginal tax rate is set at {emrPct} for this run (income tax + employee NICs + benefit withdrawal); it is configurable via the <code>--effective-marginal-rate</code> CLI argument.
+          assumes about 60% pass-through in the short term, rising to 76% from 2026–27, so our full-pass-through estimates are an upper bound.
+          We set the effective marginal tax rate to {emrPct} (income tax + employee NICs + benefit withdrawal); the <code>--effective-marginal-rate</code> argument changes it.
         </p>
       </div>
 
@@ -50,11 +57,11 @@ export default function MethodologyTab({ data }) {
           </h3>
           <ul className="mt-4 list-disc pl-5 text-sm leading-7 text-slate-600 space-y-1">
             <li>Static cost: foregone employer NICs on recently-active workers</li>
-            <li>Labour supply responses via a single extensive-margin participation elasticity (central = 0.25, from <a href="https://rajchetty.com/wp-content/uploads/2021/04/ext_margin.pdf" target="_blank" rel="noreferrer" className="underline">Chetty et al. (2013)</a>). Low / high scenarios ({data?.settings?.elasticities?.low ?? 0.1} / {data?.settings?.elasticities?.high ?? 0.4}) bracket the wider literature range</li>
+            <li>Labour supply responses via a single extensive-margin participation elasticity (central = 0.25, from <a href="https://rajchetty.com/wp-content/uploads/2021/04/ext_margin.pdf" target="_blank" rel="noreferrer" className="underline">Chetty et al. (2013)</a>). Low / high scenarios ({data.settings.elasticities.low} / {data.settings.elasticities.high}) bracket the wider literature range</li>
             <li>Fiscal offset: income tax + employee NICs + benefit savings from new workers</li>
             <li>Poverty impact (BHC) from increased employment</li>
             <li>
-              Counterfactual: a uniform PIP/DLA cut <strong>back-solved</strong> to match the published <strong>£4.8bn</strong> headline saving from the Spring Statement 2025 disability-benefit reforms ({data?.reform?.counterfactual_benefit_cuts?.cut_rate_pct != null ? `${data.reform.counterfactual_benefit_cuts.cut_rate_pct}%` : "~19%"} of working-age PIP+DLA spending in {data?.year || "2026"}). Behavioural response uses the income-effect elasticity of <strong>0.22</strong> from{" "}
+              Counterfactual: a uniform PIP/DLA cut <strong>back-solved</strong> to match the published <strong>£4.8bn</strong> headline saving from the Spring Statement 2025 disability-benefit reforms ({data.reform.counterfactual_benefit_cuts.cut_rate_pct}% of working-age PIP+DLA spending in {data.year}). Behavioural response uses the income-effect elasticity of <strong>0.22</strong> from{" "}
               <a href="https://eprints.lse.ac.uk/40085/" target="_blank" rel="noreferrer" className="underline">Marie &amp; Vall Castell&oacute; (2012)</a>.
             </li>
           </ul>

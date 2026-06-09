@@ -1,8 +1,8 @@
 """Main NICs exemption pipeline.
 
-Builds the dashboard JSON from PolicyEngine UK + LFS longitudinal data.
-Wrapped as :func:`run` so it can be invoked from the package CLI
-(:mod:`nics_exemption.cli`) or imported directly.
+Builds the dashboard JSON from the PolicyEngine (`policyengine.py`) bundle +
+LFS longitudinal data. Wrapped as :func:`run` so it can be invoked from the
+package CLI (:mod:`nics_exemption.cli`) or imported directly.
 """
 
 from __future__ import annotations
@@ -15,27 +15,24 @@ import numpy as np
 import pandas as pd
 from microdf import MicroDataFrame, MicroSeries
 
+from .calculator import build_person_calculator_lookup
 from .lfs import build_lfs_transition_targets
-
-# Latest PolicyEngine UK enhanced-FRS microdata, hosted on Hugging Face.
-# Requires `HUGGING_FACE_TOKEN` (with read access to the
-# `policyengine/policyengine-uk-data-private` repo) to be set in the
-# environment before the pipeline is invoked. We pass this URL explicitly to
-# `Microsimulation(...)` so the dataset is fetched directly from HF — there is
-# no local-file fallback. To pin a specific data release, append `@<version>`
-# (e.g. `@1.40.3`); leaving it unpinned tracks whatever PolicyEngine publishes
-# as the latest.
-DATASET_URL = "hf://policyengine/policyengine-uk-data-private/enhanced_frs_2023_24.h5"
 
 
 def run(args: argparse.Namespace) -> None:
     """Run the pipeline end-to-end and write the dashboard JSON."""
     # ── Step 1: Load PolicyEngine baseline ──────────────────────────────────
 
-    print(f"Step 1: Loading PolicyEngine UK baseline from {DATASET_URL} ...")
-    from policyengine_uk import Microsimulation
+    # Use the unified `policyengine` (`policyengine.py`) managed entry point
+    # rather than importing `policyengine_uk` directly. `managed_microsimulation`
+    # returns a country-package Microsimulation pinned to the dataset selected by
+    # the installed `policyengine.py` release bundle, so the enhanced-FRS
+    # microdata version tracks whatever the bundle certifies — no hard-coded
+    # Hugging Face dataset URL and no local-file fallback.
+    print("Step 1: Loading PolicyEngine baseline from the policyengine.py bundle ...")
+    from policyengine.tax_benefit_models.uk import managed_microsimulation
 
-    baseline = Microsimulation(dataset=DATASET_URL)
+    baseline = managed_microsimulation()
     YEAR = args.year
 
     # ── Step 2: Load and prepare LFS data ──────────────────────────────────
@@ -278,11 +275,22 @@ def run(args: argparse.Namespace) -> None:
     }
 
     _inactive_lfs = lfs.loc[lfs_inactive_mask, [lfs_inactive_col, "LGWT22"]].copy()
-    _inactive_lfs["reason"] = _inactive_lfs[lfs_inactive_col].map(_reason_map).fillna("Other")
-    # Sum LGWT22 (the LFS person weight) per reason — the result equals
-    # the weighted count of working-age inactive people in each reason category.
+    _unmapped_codes = sorted(
+        set(_inactive_lfs[lfs_inactive_col].dropna().astype(int).unique()) - set(_reason_map)
+    )
+    if _unmapped_codes:
+        raise ValueError(
+            f"Unmapped LFS {lfs_inactive_col} inactivity codes {_unmapped_codes}; "
+            "add them to _reason_map rather than bucketing them into a fallback."
+        )
+    _inactive_lfs["reason"] = _inactive_lfs[lfs_inactive_col].map(_reason_map)
+    # Weighted count of working-age inactive people per reason, via native
+    # microdf: a column of ones summed with LGWT22 (the LFS person weight) as
+    # the MicroDataFrame weight gives the population count in each category.
+    _inactive_lfs["people"] = 1.0
+    _inactive_mdf = MicroDataFrame(_inactive_lfs, weights=_inactive_lfs["LGWT22"])
     inactivity_reasons_series = (
-        _inactive_lfs.groupby("reason")["LGWT22"].sum().sort_values(ascending=False)
+        _inactive_mdf.groupby("reason")["people"].sum().sort_values(ascending=False)
     )
     inactivity_reasons = [
         {"reason": reason, "count": round(float(count))}
@@ -623,7 +631,7 @@ def run(args: argparse.Namespace) -> None:
             (16, 24, "16-24"),
             (25, 34, "25-34"),
             (35, 49, "35-49"),
-            (50, 64, "50-64"),
+            (50, 65, "50-65"),
         ]:
             m = is_inactive & (age >= lo) & (age <= hi)
             n = float(MicroSeries((prob_enter * m).astype(float), weights=person_weights).sum())
@@ -898,6 +906,12 @@ def run(args: argparse.Namespace) -> None:
                 f"  Wealth decile {d}: {n_inactive_d:,.0f} inactive, {n_entering_d:,.0f} entering work"
             )
 
+    # ── Step 11c: Per-person net-income lookup for the dashboard calculator ─
+
+    print("\nStep 11c: Building per-person net-income lookup (PolicyEngine UK)...")
+    person_calculator = build_person_calculator_lookup(YEAR, NICS_RATE, round(SECONDARY_THRESHOLD))
+    print(f"  Built {len(person_calculator['profiles'])} household profiles.")
+
     # ── Step 12: Write results JSON ───────────────────────────────────────
 
     print("\nStep 12: Writing results JSON...")
@@ -937,10 +951,19 @@ def run(args: argparse.Namespace) -> None:
             "nics_recently_active_bn": round(nics_recently_active, 2),
             "nics_not_recently_active_bn": round(nics_not_recently_active, 2),
         },
+        # Employer Class 1 NICs structure, read straight from the PolicyEngine
+        # parameter tree (see Step 9b) so the dashboard never hard-codes the
+        # rate or threshold. Employment Allowance / Apprenticeship Levy are not
+        # in the PE parameter set, so the dashboard cites those from gov.uk.
+        "nics_parameters": {
+            "employer_rate": NICS_RATE,
+            "secondary_threshold_weekly": round(SECONDARY_THRESHOLD / 52),
+            "secondary_threshold_annual": round(SECONDARY_THRESHOLD),
+        },
         "reform": {
             "nics_exemption": {
                 "static": {
-                    "cost_bn": round(nics_recently_active, 1),
+                    "cost_bn": round(nics_recently_active, 2),
                     "avg_nics_per_recent_worker": avg_nics_per_recent,
                     "poverty_impact": static_poverty_impact,
                 },
@@ -953,7 +976,7 @@ def run(args: argparse.Namespace) -> None:
                         "nics_exemption_cost_bn": d["nics_exemption_cost_bn"],
                     }
                     for d in age_data
-                    if d["age_group"] != "65+"
+                    if d["age_group"] != above_spa_label
                 ],
                 "by_gender": by_gender,
                 "by_country": by_country,
@@ -965,6 +988,7 @@ def run(args: argparse.Namespace) -> None:
             },
             "counterfactual_benefit_cuts": counterfactual,
         },
+        "person_calculator": person_calculator,
         "pct_active_by_age_lfs": {
             str(int(k)): round(float(v), 4)
             for k, v in pct_active_by_age_lfs.items()

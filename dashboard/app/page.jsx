@@ -81,8 +81,10 @@ function Dashboard() {
             employers from NICs on employees who recently transitioned from
             economic inactivity into work. The exemption applies to all
             recently-inactive workers (disabled and non-disabled). The <strong>NICs exemption reform</strong>{" "}
-            tab shows the static cost, behavioural labour-supply response, and a
-            comparison with disability benefit cuts. The{" "}
+            tab is split into three views — a <em>household</em> calculator showing the effect on a
+            single worker, the <em>population (static)</em> cost, and the{" "}
+            <em>population (behavioural)</em> labour-supply response with a comparison to disability
+            benefit cuts. The{" "}
             <strong>Inactivity baseline</strong> tab presents the current
             state of economic inactivity, disability, and employer NICs. The{" "}
             <strong>Methodology</strong> tab explains the data sources,

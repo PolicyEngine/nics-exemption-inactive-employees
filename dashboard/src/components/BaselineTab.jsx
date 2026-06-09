@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import SectionHeading from "./SectionHeading";
 import { getBaselineSummary, getByAgeGroup, getInactivityReasons, getCombinedPctActiveByAge } from "../lib/dataHelpers";
-import { formatBn, formatCount, formatPct } from "../lib/formatters";
+import { formatBn, formatCount } from "../lib/formatters";
 import ChartLogo from "./ChartLogo";
 
 const AXIS_STYLE = {
@@ -46,18 +46,27 @@ function CustomTooltip({ active, payload, label, formatter }) {
   );
 }
 
-const NICS_THRESHOLDS = [
-  { band: "Below Secondary Threshold", range: "Up to \u00A35,000/yr (\u00A396/wk)", rate: "0%", url: "https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2025-to-2026" },
-  { band: "Above Secondary Threshold", range: "\u00A35,000+/yr", rate: "15%", url: "https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2025-to-2026" },
-  { band: "Employment Allowance", range: "Eligible employers", rate: "\u00A310,500 off", url: "https://www.gov.uk/claim-employment-allowance" },
-  { band: "Apprenticeship Levy", range: "Pay bill > \u00A33m", rate: "0.5%", url: "https://www.gov.uk/guidance/pay-apprenticeship-levy" },
-];
-
 export default function BaselineTab({ data }) {
   const summary = getBaselineSummary(data);
   const byAge = getByAgeGroup(data, "baseline");
   const inactivityReasons = getInactivityReasons(data);
   const combinedPctActive = getCombinedPctActiveByAge(data);
+
+  // Employer Class 1 NICs structure. The secondary threshold and employer rate
+  // come straight from the PolicyEngine parameter tree (emitted by the pipeline
+  // as `nics_parameters`) so they are never hard-coded here. Employment
+  // Allowance and the Apprenticeship Levy are not in the PE parameter set, so
+  // they remain cited directly from gov.uk.
+  const ni = data.nics_parameters;
+  const stAnnual = ni.secondary_threshold_annual.toLocaleString("en-GB");
+  const stWeekly = ni.secondary_threshold_weekly.toLocaleString("en-GB");
+  const employerRatePct = `${Math.round(ni.employer_rate * 100)}%`;
+  const NICS_THRESHOLDS = [
+    { band: "Below Secondary Threshold", range: `Up to \u00A3${stAnnual}/yr (\u00A3${stWeekly}/wk)`, rate: "0%", url: "https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2025-to-2026" },
+    { band: "Above Secondary Threshold", range: `\u00A3${stAnnual}+/yr`, rate: employerRatePct, url: "https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2025-to-2026" },
+    { band: "Employment Allowance", range: "Eligible employers", rate: "\u00A310,500 off", url: "https://www.gov.uk/claim-employment-allowance" },
+    { band: "Apprenticeship Levy", range: "Pay bill > \u00A33m", rate: "0.5%", url: "https://www.gov.uk/guidance/pay-apprenticeship-levy" },
+  ];
 
   const sortedReasons = useMemo(() => {
     if (!inactivityReasons.length) return [];
@@ -106,7 +115,8 @@ export default function BaselineTab({ data }) {
             {summary?.total_employer_nics_bn ? formatBn(summary.total_employer_nics_bn) : "--"}
           </div>
           <div className="mt-1 text-sm text-slate-500">
-            Annual employer National Insurance contributions (official:{" "}
+            Modelled total employer National Insurance contributions; runs somewhat above the OBR
+            receipts forecast (official:{" "}
             <a href="https://obr.uk/forecasts-in-depth/tax-by-tax-spend-by-spend/national-insurance-contributions-nics/" target="_blank" rel="noreferrer" className="underline">
               £145.8bn, OBR March 2025
             </a>)
@@ -130,43 +140,50 @@ export default function BaselineTab({ data }) {
             description="Breakdown of the working-age population by disability and activity status."
           />
           {summary ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-5 py-4">
-                <div>
-                  <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Disability employment rate</div>
-                  <div className="mt-0.5 text-xs text-slate-500">
-                    vs {summary.non_disabled_employment_rate != null ? `${summary.non_disabled_employment_rate}%` : "--"} non-disabled ({summary.disability_employment_gap_pp != null ? `${summary.disability_employment_gap_pp}pp gap` : ""})
-                  </div>
-                </div>
-                <div className="text-2xl font-bold text-slate-900">
-                  {summary.disabled_employment_rate != null ? `${summary.disabled_employment_rate}%` : "--"}
-                </div>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-5 py-4">
-                <div>
-                  <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">% of inactive who are disabled</div>
-                  <div className="mt-0.5 text-xs text-slate-500">
-                    {summary.n_inactive_disabled ? `${formatCount(summary.n_inactive_disabled)} of ${formatCount(summary.n_economically_inactive || 0)} inactive` : ""}
-                  </div>
-                </div>
-                <div className="text-2xl font-bold text-slate-900">
-                  {summary.pct_inactive_disabled != null ? `${summary.pct_inactive_disabled}%` : "--"}
-                </div>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-5 py-4">
-                <div>
-                  <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Disability benefits spending</div>
-                  <div className="mt-0.5 text-xs text-slate-500">
-                    Official:{" "}
-                    <a href="https://www.gov.uk/government/consultations/pathways-to-work-reforming-benefits-and-support-to-get-britain-working-green-paper/spring-statement-2025-health-and-disability-benefit-reforms-impacts" target="_blank" rel="noreferrer" className="underline">
-                      £55.1bn, DWP 2025–26
-                    </a>
-                  </div>
-                </div>
-                <div className="text-2xl font-bold text-slate-900">
-                  {summary.total_disability_benefits_bn ? formatBn(summary.total_disability_benefits_bn) : "--"}
-                </div>
-              </div>
+            <div className="overflow-x-auto">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Metric</th>
+                    <th>Detail</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="font-medium">Disability employment rate</td>
+                    <td>
+                      vs {summary.non_disabled_employment_rate != null ? `${summary.non_disabled_employment_rate}%` : "--"} non-disabled
+                      {summary.disability_employment_gap_pp != null ? ` (${summary.disability_employment_gap_pp}pp gap)` : ""}
+                    </td>
+                    <td>{summary.disabled_employment_rate != null ? `${summary.disabled_employment_rate}%` : "--"}</td>
+                  </tr>
+                  <tr>
+                    <td className="font-medium">% of inactive who are disabled</td>
+                    <td>
+                      {summary.n_inactive_disabled ? `${formatCount(summary.n_inactive_disabled)} of ${formatCount(summary.n_economically_inactive || 0)} inactive` : ""}
+                    </td>
+                    <td>{summary.pct_inactive_disabled != null ? `${summary.pct_inactive_disabled}%` : "--"}</td>
+                  </tr>
+                  <tr>
+                    <td className="font-medium">Disability benefits spending</td>
+                    <td>
+                      Official:{" "}
+                      <a href="https://www.gov.uk/government/consultations/pathways-to-work-reforming-benefits-and-support-to-get-britain-working-green-paper/spring-statement-2025-health-and-disability-benefit-reforms-impacts" target="_blank" rel="noreferrer" className="underline">
+                        £55.1bn, DWP 2025–26
+                      </a>
+                    </td>
+                    <td>{summary.total_disability_benefits_bn ? formatBn(summary.total_disability_benefits_bn) : "--"}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p className="mt-3 text-xs leading-5 text-slate-400">
+                &ldquo;Disabled&rdquo; here is defined broadly by disability-benefit receipt and
+                disability-related activity status (≈{formatCount(summary.n_disabled || 0)} working-age
+                people) — a narrower, more health-severe group than the survey-based Equality Act
+                definition behind the official disability employment rate (~53%, ONS). The rate shown
+                is correspondingly lower because this group is, by construction, mostly out of work.
+              </p>
             </div>
           ) : (
             <p className="text-sm text-slate-500">Summary data not yet available.</p>
@@ -267,7 +284,7 @@ export default function BaselineTab({ data }) {
         <div className="section-card">
           <SectionHeading
             title="NICs rates and thresholds"
-            description="Current employer NICs rate structure (2026-27 tax year)."
+            description={`Current employer NICs rate structure (${data.year}–${(data.year + 1) % 100} tax year).`}
           />
           <div className="overflow-x-auto">
             <table className="data-table">

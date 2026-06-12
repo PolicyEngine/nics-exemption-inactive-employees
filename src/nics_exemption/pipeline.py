@@ -296,7 +296,16 @@ def run(args: argparse.Namespace) -> None:
 
     print("Step 3: Preparing imputation...")
     df = pd.concat([X_train, y_train], axis=1)
-    df["employment_income"] = df.gross_weekly_pay.clip(lower=0) * 52
+    # GRSSWK5 uses negative sentinel codes (-8/-9) for missing or inapplicable
+    # pay; never convert them to £0 (issue #8). Pay is inapplicable, meaning a
+    # true £0 of employment income, for people not employed at wave 5; for
+    # wave-5 employees with pay non-response the income is unknown, so those
+    # rows are dropped from training rather than entering as zero earners.
+    employed_wave5 = lfs.loc[df.index, "INCAC055"].between(1, 4).to_numpy()
+    weekly_pay = df.gross_weekly_pay.to_numpy(dtype=float)
+    df["employment_income"] = np.where(
+        ~employed_wave5, 0.0, np.where(weekly_pay >= 0, weekly_pay * 52, np.nan)
+    )
     df["gender"] = df.sex.astype(int).map({1: "MALE", 2: "FEMALE"})
     df["weight"] = weights
 
@@ -315,9 +324,14 @@ def run(args: argparse.Namespace) -> None:
     from microimpute.comparisons import autoimpute
 
     # Use QRF because it preserves heterogeneity for the rare transition target.
-    print("  Running autoimpute with QRF...")
+    train_df = df[df.employment_income.notna()]
+    dropped = len(df) - len(train_df)
+    print(
+        f"  Running autoimpute with QRF on {len(train_df)} donors "
+        f"({dropped} wave-5 employees with missing pay dropped)..."
+    )
     results = autoimpute(
-        df,
+        train_df,
         efrs,
         predictors=predictor_vars,
         imputed_variables=imputed_vars,

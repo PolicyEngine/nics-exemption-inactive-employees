@@ -6,7 +6,7 @@ Interactive dashboard estimating the cost, employment effects, and poverty impac
 
 ## What the dashboard covers
 
-- **Static cost**: foregone employer NICs on ~3M recently-active workers (£3.5bn/year)
+- **Static cost**: foregone employer NICs on ~2.8M recently-active workers (£4.8bn/year)
 - **Behavioural response**: labour supply estimates using a single population-wide extensive-margin participation elasticity of 0.25 from [Chetty, Guren, Manoli & Weber (2013)](https://rajchetty.com/wp-content/uploads/2021/04/ext_margin.pdf), with low (0.1) / high (0.4) scenarios bracketing the wider literature range
 - **Poverty impact**: people lifted out of poverty (BHC) via higher wages and new employment
 - **Counterfactual**: comparison with disability benefit cuts (10% PIP/DLA reduction)

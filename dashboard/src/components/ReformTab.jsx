@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { colors } from "../lib/colors";
 import {
   Bar,
@@ -376,14 +377,28 @@ export default function ReformTab({ data }) {
     );
   }, [behavioural, summary]);
 
+  const searchParams = useSearchParams();
   const [breakdownDim, setBreakdownDim] = useState("age");
   const [behaviouralDim, setBehaviouralDim] = useState("age");
+  const [fullTimeOnly, setFullTimeOnly] = useState(
+    () => searchParams?.get("ft") === "1"
+  );
 
   const totalRecentlyActive = useMemo(() => {
     return byAge
       .filter((d) => d.age_group !== "65+")
       .reduce((sum, d) => sum + (d.n_recently_active || 0), 0);
   }, [byAge]);
+
+  // Full-time-only variant: restricts the exemption to employees working
+  // >= 30h/week (ONS threshold), read directly from the Enhanced FRS.
+  const ftOnly = summary?.full_time_only || null;
+  const showFt = fullTimeOnly && ftOnly != null;
+  const displayCost = showFt ? ftOnly.cost_bn : summary?.cost_bn;
+  const displayCount = showFt ? ftOnly.n_recently_active : totalRecentlyActive;
+  const displayAvg = showFt
+    ? ftOnly.avg_nics_per_recent_worker
+    : summary?.avg_nics_per_recent_worker;
 
   return (
     <div className="space-y-8">
@@ -395,16 +410,45 @@ export default function ReformTab({ data }) {
       {/* ================================================================ */}
       {/* STATIC COST — METRIC CARDS                                       */}
       {/* ================================================================ */}
+      {ftOnly != null && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={fullTimeOnly}
+            onClick={() => setFullTimeOnly((v) => !v)}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
+              fullTimeOnly ? "bg-primary-600" : "bg-slate-300"
+            }`}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                fullTimeOnly ? "translate-x-5" : "translate-x-0.5"
+              }`}
+            />
+          </button>
+          <span className="text-sm font-medium text-slate-700">
+            Full-time employees only (&ge;{ftOnly.hours_cut ?? 30}h/week)
+          </span>
+          <span className="text-sm text-slate-500">
+            {fullTimeOnly
+              ? `Restricting to full-time hires lowers the static cost by ~${Math.round((1 - (ftOnly.cost_share_of_all ?? 0)) * 100)}% (part-time NIC-payers are a small share of the base).`
+              : "Toggle to price the exemption for full-time hires only."}
+            {ftOnly.estimated ? " Estimate pending a full pipeline re-run." : ""}
+          </span>
+        </div>
+      )}
       <div className="grid gap-4 md:grid-cols-3">
         <div className="metric-card">
           <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">
             Static cost of exemption
           </div>
           <div className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-            {summary?.cost_bn != null ? formatBn(summary.cost_bn) : "--"}
+            {displayCost != null ? formatBn(displayCost) : "--"}
           </div>
           <div className="mt-2 text-sm text-slate-500">
             Foregone employer NICs revenue on workers who already transitioned into work
+            {showFt ? " (full-time hires only)" : ""}
           </div>
         </div>
         <div className="metric-card">
@@ -412,7 +456,7 @@ export default function ReformTab({ data }) {
             Static: recently-active employees (5Q)
           </div>
           <div className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-            {totalRecentlyActive > 0 ? formatCount(totalRecentlyActive) : "--"}
+            {displayCount > 0 ? formatCount(displayCount) : "--"}
           </div>
           <div className="mt-2 text-sm text-slate-500">
             Working-age people who transitioned from inactivity within the last 5 quarters.{" "}
@@ -427,8 +471,8 @@ export default function ReformTab({ data }) {
             Static: avg saving per exempt hire
           </div>
           <div className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-            {summary?.avg_nics_per_recent_worker != null
-              ? `\u00A3${summary.avg_nics_per_recent_worker.toLocaleString()}`
+            {displayAvg != null
+              ? `\u00A3${displayAvg.toLocaleString()}`
               : "--"}
           </div>
           <div className="mt-2 text-sm text-slate-500">

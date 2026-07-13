@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { colors } from "../lib/colors";
 import {
   Bar,
@@ -64,7 +66,7 @@ function DecileCharts({ data, dimension }) {
           description=""
         />
         <div className="h-[340px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <BarChart data={dimData}>
               <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} />
               <XAxis dataKey="group" tick={{ ...AXIS_STYLE, fontSize: 11 }} tickLine={false} />
@@ -82,7 +84,7 @@ function DecileCharts({ data, dimension }) {
           description=""
         />
         <div className="h-[340px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <BarChart data={dimData}>
               <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} />
               <XAxis dataKey="group" tick={{ ...AXIS_STYLE, fontSize: 11 }} tickLine={false} />
@@ -149,7 +151,7 @@ function ComparisonMethodologyToggle({ counterfactual, year }) {
       <p>
         A side-by-side comparison of two policies aimed at moving inactive people into work: the <strong>NICs exemption</strong> proposed here, and the{" "}
         <a href="https://www.gov.uk/government/consultations/pathways-to-work-reforming-benefits-and-support-to-get-britain-working-green-paper/spring-statement-2025-health-and-disability-benefit-reforms-impacts" target="_blank" rel="noreferrer" className="underline">government&apos;s announced disability-benefit reforms</a>{" "}
-        (PIP eligibility tightening + UC health element freeze, projected to save <strong>£4.8bn by 2029–30</strong>).{" "}
+        (PIP eligibility tightening + UC health element freeze, projected to save <strong>£4.8bn by 2029–30</strong>). The two sides are deliberately matched at the same <strong>£4.8bn fiscal envelope</strong> — the benefit cut is back-solved to save exactly what the exemption costs statically — so the table compares what each policy delivers for the same money.{" "}
         <button
           className="font-semibold text-slate-700 underline decoration-dotted underline-offset-2 hover:text-slate-900"
           onClick={() => setOpen(!open)}
@@ -203,7 +205,7 @@ function CaveatsToggle() {
           </li>
           <li>Hours responses are not modelled; already-employed workers have no behavioural response.</li>
           <li>Health, accessibility, and skills barriers limit the policy&apos;s reach beyond what financial incentives alone capture.</li>
-          <li>Deadweight, substitution, and displacement effects are excluded.</li>
+          <li>Substitution and displacement effects are excluded. Deadweight is inherent to the design — the exemption also pays for transitions that would have happened anyway — and is surfaced in the &ldquo;Net cost per additional entrant&rdquo; metric.</li>
         </ul>
       )}
     </div>
@@ -313,6 +315,11 @@ function BreakdownTable({ dimension, byAge, data, totalRecentlyActive, costBn })
             </tr>
           ))}
         </tbody>
+        <caption className="caption-bottom pt-3 text-left text-xs text-slate-500">
+          Pension-age groups (66+) are shown for completeness but excluded from
+          the working-age headline count; they contribute effectively nothing
+          to the exemption cost.
+        </caption>
       </table>
     );
   }
@@ -376,22 +383,63 @@ export default function ReformTab({ data }) {
     );
   }, [behavioural, summary]);
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const SUB_TABS = ["static", "behavioural", "comparison"];
+  const [subTab, setSubTab] = useState(() => {
+    const sub = searchParams?.get("sub");
+    return SUB_TABS.includes(sub) ? sub : "static";
+  });
   const [breakdownDim, setBreakdownDim] = useState("age");
   const [behaviouralDim, setBehaviouralDim] = useState("age");
 
+  function handleSubTabChange(id) {
+    setSubTab(id);
+    router.replace(id === "static" ? "/" : `/?sub=${id}`, { scroll: false });
+  }
+
+  // Working-age only: pension-age groups ("66+") are shown in the breakdown
+  // table but excluded from the headline count.
   const totalRecentlyActive = useMemo(() => {
     return byAge
-      .filter((d) => d.age_group !== "65+")
+      .filter((d) => !d.age_group?.endsWith("+"))
       .reduce((sum, d) => sum + (d.n_recently_active || 0), 0);
   }, [byAge]);
+  const costPerEntrant =
+    displayNetCost != null && central.n_new_entrants
+      ? Math.round((displayNetCost * 1e9) / central.n_new_entrants)
+      : null;
 
   return (
     <div className="space-y-8">
       <SectionHeading
         title="NICs exemption reform analysis"
-        description={<>Estimated cost of exempting employers from NICs on employees who already transitioned from economic inactivity into work within the last 5 quarters (15 months), regardless of disability status. Behavioural estimates are separate: they estimate additional entries from the currently inactive pool. Figures are based on PolicyEngine UK microsimulation with <a href="https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/methodologies/labourforcesurveyuserguidance" target="_blank" rel="noreferrer" className="underline">LFS longitudinal data</a> imputed onto the Enhanced FRS.</>}
+        description={<>Estimated cost of exempting employers from NICs on employees who have moved from economic inactivity into work within the last 5 quarters (15 months), regardless of disability status. <strong>Static cost</strong> prices the exemption for workers who have already made that transition; <strong>Behavioural response</strong> estimates additional entries from the currently inactive pool; <strong>vs benefit cuts</strong> compares it with the government&apos;s disability-benefit reforms. Figures come from PolicyEngine UK microsimulation with <a href="https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/methodologies/labourforcesurveyuserguidance" target="_blank" rel="noreferrer" className="underline">LFS longitudinal data</a> imputed onto the Enhanced FRS.</>}
       />
 
+      {/* ================================================================ */}
+      {/* SUB-TABS: STATIC / BEHAVIOURAL                                   */}
+      {/* ================================================================ */}
+      <div className="flex w-fit flex-wrap border-b-2 border-slate-200" role="tablist" aria-label="Reform analysis sections">
+        {[
+          { id: "static", label: "Static cost" },
+          { id: "behavioural", label: "Behavioural response" },
+          { id: "comparison", label: "vs benefit cuts" },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            role="tab"
+            aria-selected={subTab === tab.id}
+            className={`tab-button ${subTab === tab.id ? "active" : ""}`}
+            onClick={() => handleSubTabChange(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {subTab === "static" && (
+      <>
       {/* ================================================================ */}
       {/* STATIC COST — METRIC CARDS                                       */}
       {/* ================================================================ */}
@@ -404,12 +452,12 @@ export default function ReformTab({ data }) {
             {summary?.cost_bn != null ? formatBn(summary.cost_bn) : "--"}
           </div>
           <div className="mt-2 text-sm text-slate-500">
-            Foregone employer NICs revenue on workers who already transitioned into work
+            Forgone employer NICs revenue on workers who have already moved into work
           </div>
         </div>
         <div className="metric-card">
           <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">
-            Static: recently-active employees (5Q)
+            Recently-active employees (5Q)
           </div>
           <div className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
             {totalRecentlyActive > 0 ? formatCount(totalRecentlyActive) : "--"}
@@ -419,20 +467,90 @@ export default function ReformTab({ data }) {
             <a href="https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/datasets/labourforcesurveyflowsestimatesx02" target="_blank" rel="noreferrer" className="underline">
               ONS X02 flows
             </a>{" "}
-            shows 578k moving from inactivity to employment per quarter (Oct{"\u2013"}Dec 2025)
+            show 578k moving from inactivity to employment per quarter, all ages (Oct{"–"}Dec 2025)
           </div>
         </div>
         <div className="metric-card">
           <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">
-            Static: avg saving per exempt hire
+            Avg saving per exempt hire
           </div>
           <div className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
             {summary?.avg_nics_per_recent_worker != null
-              ? `\u00A3${summary.avg_nics_per_recent_worker.toLocaleString()}`
+              ? `£${summary.avg_nics_per_recent_worker.toLocaleString()}`
               : "--"}
           </div>
           <div className="mt-2 text-sm text-slate-500">
             Average annual employer NICs per recently-active worker
+          </div>
+        </div>
+      </div>
+      <p className="text-xs text-slate-500">
+        The static cost is a point estimate: transition status is imputed from
+        the LFS onto the Enhanced FRS, so it carries imputation and sampling
+        uncertainty (see the Methodology tab).
+      </p>
+
+      {/* ================================================================ */}
+      {/* WHAT THE REFORM DOES                                             */}
+      {/* ================================================================ */}
+      <div>
+        <SectionHeading
+          title="What the reform does"
+          description={<>The reform exempts employers from paying employer National Insurance contributions on the wages of employees who recently moved from economic inactivity into work. The cards below summarise the policy change and who qualifies. How likely inactive people are to make that move varies strongly with age — see <em>&ldquo;Percentage becoming economically active within 5 quarters, by age&rdquo;</em> in the <Link href="/?tab=baseline#pct-active-by-age" className="underline">Inactivity baseline</Link> tab.</>}
+        />
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="section-card">
+            <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">
+              Policy change
+            </div>
+            <div className="mt-4 flex items-stretch gap-0">
+              <div className="flex flex-1 flex-col items-center justify-center rounded-l-xl border border-slate-200 bg-slate-50 px-4 py-4">
+                <div className="text-3xl font-bold tracking-tight text-slate-400 line-through decoration-slate-300 decoration-2">
+                  15%
+                </div>
+                <div className="mt-1 text-xs font-medium uppercase tracking-[0.08em] text-slate-400">
+                  Current rate
+                </div>
+              </div>
+              <div className="relative flex items-center">
+                <div className="z-10 -mx-4 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm">
+                  →
+                </div>
+              </div>
+              <div className="flex flex-1 flex-col items-center justify-center rounded-r-xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+                <div className="text-3xl font-bold tracking-tight text-emerald-700">
+                  0%
+                </div>
+                <div className="mt-1 text-xs font-medium uppercase tracking-[0.08em] text-emerald-600">
+                  For eligible hires
+                </div>
+              </div>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Employer NICs — currently 15% on earnings above the £5,000
+              secondary threshold — are abolished for eligible employees.
+              Employee NICs, income tax, and benefits are unchanged.
+            </p>
+          </div>
+          <div className="section-card">
+            <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">
+              Who qualifies
+            </div>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
+              <li className="flex gap-2">
+                <span className="text-emerald-600">✓</span>
+                Working-age employees
+              </li>
+              <li className="flex gap-2">
+                <span className="text-emerald-600">✓</span>
+                Transitioned from economic inactivity into work within the last
+                5 quarters (15 months)
+              </li>
+              <li className="flex gap-2">
+                <span className="text-emerald-600">✓</span>
+                Regardless of disability status
+              </li>
+            </ul>
           </div>
         </div>
       </div>
@@ -444,8 +562,8 @@ export default function ReformTab({ data }) {
         <>
           <div>
             <SectionHeading
-              title="Detailed breakdown (static)"
-              description="Summary table of the NICs exemption cost and workers who became active within 5 quarters, by selected dimension."
+              title="Detailed breakdown"
+              description="Exemption cost and workers who became active within 5 quarters, by selected dimension. The age gradient mirrors the transition rates shown in the Inactivity baseline tab."
             />
           </div>
 
@@ -481,7 +599,27 @@ export default function ReformTab({ data }) {
           </div>
         </>
       )}
+      {counterfactual.name && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-5 py-4">
+          <p className="text-sm text-slate-600">
+            The government&apos;s disability-benefit cuts are projected to save
+            the same <strong>£4.8bn</strong>. How do the two policies compare
+            for the same money?
+          </p>
+          <button
+            type="button"
+            className="rounded-full bg-primary-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-primary-700"
+            onClick={() => handleSubTabChange("comparison")}
+          >
+            See the comparison →
+          </button>
+        </div>
+      )}
+      </>
+      )}
 
+      {subTab === "behavioural" && (
+      <>
       {/* ================================================================ */}
       {/* BEHAVIOURAL RESPONSE                                             */}
       {/* ================================================================ */}
@@ -493,7 +631,7 @@ export default function ReformTab({ data }) {
         <CaveatsToggle />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <div className="metric-card">
           <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">
             New entrants (central)
@@ -543,7 +681,21 @@ export default function ReformTab({ data }) {
               : "--"}
           </div>
           <div className="mt-2 text-sm text-slate-500">
-            People lifted out of poverty (BHC)
+            New entrants whose net wage gain exceeds their household&apos;s BHC
+            poverty gap (behavioural channel)
+          </div>
+        </div>
+        <div className="metric-card">
+          <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">
+            Net cost per additional entrant
+          </div>
+          <div className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+            {costPerEntrant != null ? `£${costPerEntrant.toLocaleString()}` : "--"}
+          </div>
+          <div className="mt-2 text-sm text-slate-500">
+            Net fiscal cost divided by new entrants. High because the exemption
+            also subsidises the {totalRecentlyActive > 0 ? formatCount(totalRecentlyActive) : "many"}{" "}
+            people who would have transitioned anyway (deadweight)
           </div>
         </div>
         {central.n_neets_baseline > 0 && (
@@ -573,7 +725,7 @@ export default function ReformTab({ data }) {
       <div className="section-card">
         <SectionHeading
           title="New entrants by dimension"
-          description="Estimated number of inactive people entering work under the exemption (central estimate), broken down by selected dimension."
+          description={<>Estimated number of inactive people entering work under the exemption (central estimate), broken down by selected dimension. Baseline propensities to move into work by age are shown in <em>&ldquo;Percentage becoming economically active within 5 quarters, by age&rdquo;</em> on the <Link href="/?tab=baseline#pct-active-by-age" className="underline">Inactivity baseline</Link> tab.</>}
         />
         <div className="mb-4 flex flex-wrap gap-2">
           {[
@@ -596,7 +748,7 @@ export default function ReformTab({ data }) {
 
         {behaviouralDim === "age" && central.by_age && (
           <div className="h-[380px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <BarChart data={central.by_age}>
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} />
                 <XAxis dataKey="age_group" tick={AXIS_STYLE} tickLine={false} />
@@ -610,7 +762,7 @@ export default function ReformTab({ data }) {
 
         {behaviouralDim === "income_decile" && byDecileBehav.length > 0 && (
           <div className="h-[380px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <BarChart data={byDecileBehav}>
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} />
                 <XAxis dataKey="decile" tick={AXIS_STYLE} tickLine={false} />
@@ -624,10 +776,14 @@ export default function ReformTab({ data }) {
 
         <ChartLogo />
       </div>
+      </>
+      )}
 
       {/* ================================================================ */}
       {/* COUNTERFACTUAL: BENEFIT CUTS                                     */}
       {/* ================================================================ */}
+      {subTab === "comparison" && (
+      <>
       {counterfactual.name && (
         <>
           <div>
@@ -692,6 +848,8 @@ export default function ReformTab({ data }) {
             </table>
           </div>
         </>
+      )}
+      </>
       )}
     </div>
   );

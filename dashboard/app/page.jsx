@@ -90,10 +90,12 @@ function Dashboard() {
           </p>
         </div>
 
-        <div className="mb-8 mt-8 flex w-fit flex-wrap border-b-2 border-slate-200">
+        <div className="mb-8 mt-8 flex w-fit flex-wrap border-b-2 border-slate-200" role="tablist" aria-label="Dashboard sections">
           {TAB_OPTIONS.map((tab) => (
             <button
               key={tab.id}
+              role="tab"
+              aria-selected={activeTab === tab.id}
               className={`tab-button ${activeTab === tab.id ? "active" : ""}`}
               onClick={() => handleTabChange(tab.id)}
             >

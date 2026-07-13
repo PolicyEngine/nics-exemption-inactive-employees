@@ -49,7 +49,7 @@ export default function MethodologyTab({ data }) {
             What the model captures
           </h3>
           <ul className="mt-4 list-disc pl-5 text-sm leading-7 text-slate-600 space-y-1">
-            <li>Static cost: foregone employer NICs on recently-active workers</li>
+            <li>Static cost: forgone employer NICs on recently-active workers</li>
             <li>Labour supply responses via a single extensive-margin participation elasticity (central = 0.25, from <a href="https://rajchetty.com/wp-content/uploads/2021/04/ext_margin.pdf" target="_blank" rel="noreferrer" className="underline">Chetty et al. (2013)</a>). Low / high scenarios ({data?.settings?.elasticities?.low ?? 0.1} / {data?.settings?.elasticities?.high ?? 0.4}) bracket the wider literature range</li>
             <li>Fiscal offset: income tax + employee NICs + benefit savings from new workers</li>
             <li>Poverty impact (BHC) from increased employment</li>

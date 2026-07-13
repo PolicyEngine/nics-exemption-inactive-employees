@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { colors } from "../lib/colors";
 import {
   Bar,
@@ -48,7 +48,7 @@ function CustomTooltip({ active, payload, label, formatter }) {
 
 const NICS_THRESHOLDS = [
   { band: "Below Secondary Threshold", range: "Up to \u00A35,000/yr (\u00A396/wk)", rate: "0%", url: "https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2025-to-2026" },
-  { band: "Above Secondary Threshold", range: "\u00A35,000+/yr", rate: "15%", url: "https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2025-to-2026" },
+  { band: "Above Secondary Threshold", range: "\u00A35,000+/yr", rate: "15%", url: "https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2025-to-2026", highlight: true },
   { band: "Employment Allowance", range: "Eligible employers", rate: "\u00A310,500 off", url: "https://www.gov.uk/claim-employment-allowance" },
   { band: "Apprenticeship Levy", range: "Pay bill > \u00A33m", rate: "0.5%", url: "https://www.gov.uk/guidance/pay-apprenticeship-levy" },
 ];
@@ -63,6 +63,17 @@ export default function BaselineTab({ data }) {
     if (!inactivityReasons.length) return [];
     return [...inactivityReasons].sort((a, b) => (b.count || 0) - (a.count || 0));
   }, [inactivityReasons]);
+
+  // Data loads asynchronously, so the browser's native anchor scroll fires
+  // before the target exists; re-run it once the tab has rendered.
+  useEffect(() => {
+    const hash = window.location.hash?.slice(1);
+    if (!hash) return;
+    const timer = setTimeout(() => {
+      document.getElementById(hash)?.scrollIntoView();
+    }, 700);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="space-y-10">
@@ -131,40 +142,77 @@ export default function BaselineTab({ data }) {
           />
           {summary ? (
             <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-5 py-4">
-                <div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-4">
+                <div className="flex items-baseline justify-between">
                   <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Disability employment rate</div>
-                  <div className="mt-0.5 text-xs text-slate-500">
-                    vs {summary.non_disabled_employment_rate != null ? `${summary.non_disabled_employment_rate}%` : "--"} non-disabled ({summary.disability_employment_gap_pp != null ? `${summary.disability_employment_gap_pp}pp gap` : ""})
+                  <div className="text-2xl font-bold text-slate-900">
+                    {summary.disabled_employment_rate != null ? `${summary.disabled_employment_rate}%` : "--"}
                   </div>
                 </div>
-                <div className="text-2xl font-bold text-slate-900">
-                  {summary.disabled_employment_rate != null ? `${summary.disabled_employment_rate}%` : "--"}
+                {summary.disabled_employment_rate != null && summary.non_disabled_employment_rate != null && (
+                  <div className="mt-3 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="h-2 flex-1 rounded-full bg-slate-200"
+                        role="img"
+                        aria-label={`Disabled employment rate ${summary.disabled_employment_rate}%`}
+                      >
+                        <div className="h-2 rounded-full bg-primary-600" style={{ width: `${summary.disabled_employment_rate}%` }} />
+                      </div>
+                      <span className="w-28 text-xs text-slate-500">disabled</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="h-2 flex-1 rounded-full bg-slate-200"
+                        role="img"
+                        aria-label={`Non-disabled employment rate ${summary.non_disabled_employment_rate}%`}
+                      >
+                        <div className="h-2 rounded-full bg-slate-400" style={{ width: `${summary.non_disabled_employment_rate}%` }} />
+                      </div>
+                      <span className="w-28 text-xs text-slate-500">{summary.non_disabled_employment_rate}% non-disabled</span>
+                    </div>
+                  </div>
+                )}
+                <div className="mt-2 text-xs text-slate-500">
+                  {summary.disability_employment_gap_pp != null ? `${summary.disability_employment_gap_pp}pp employment gap` : ""}
                 </div>
               </div>
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-5 py-4">
-                <div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-4">
+                <div className="flex items-baseline justify-between">
                   <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">% of inactive who are disabled</div>
-                  <div className="mt-0.5 text-xs text-slate-500">
-                    {summary.n_inactive_disabled ? `${formatCount(summary.n_inactive_disabled)} of ${formatCount(summary.n_economically_inactive || 0)} inactive` : ""}
+                  <div className="text-2xl font-bold text-slate-900">
+                    {summary.pct_inactive_disabled != null ? `${summary.pct_inactive_disabled}%` : "--"}
                   </div>
                 </div>
-                <div className="text-2xl font-bold text-slate-900">
-                  {summary.pct_inactive_disabled != null ? `${summary.pct_inactive_disabled}%` : "--"}
+                {summary.pct_inactive_disabled != null && (
+                  <div
+                    className="mt-3 h-2 w-full rounded-full bg-slate-200"
+                    role="img"
+                    aria-label={`${summary.pct_inactive_disabled}% of economically inactive people are disabled`}
+                  >
+                    <div className="h-2 rounded-full bg-primary-600" style={{ width: `${summary.pct_inactive_disabled}%` }} />
+                  </div>
+                )}
+                <div className="mt-2 text-xs text-slate-500">
+                  {summary.n_inactive_disabled ? `${formatCount(summary.n_inactive_disabled)} of ${formatCount(summary.n_economically_inactive || 0)} economically inactive people are disabled` : ""}
                 </div>
               </div>
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-5 py-4">
-                <div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-4">
+                <div className="flex items-baseline justify-between">
                   <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Disability benefits spending</div>
-                  <div className="mt-0.5 text-xs text-slate-500">
-                    Official:{" "}
-                    <a href="https://www.gov.uk/government/consultations/pathways-to-work-reforming-benefits-and-support-to-get-britain-working-green-paper/spring-statement-2025-health-and-disability-benefit-reforms-impacts" target="_blank" rel="noreferrer" className="underline">
-                      £55.1bn, DWP 2025–26
-                    </a>
+                  <div className="text-2xl font-bold text-slate-900">
+                    {summary.total_disability_benefits_bn ? formatBn(summary.total_disability_benefits_bn) : "--"}
                   </div>
                 </div>
-                <div className="text-2xl font-bold text-slate-900">
-                  {summary.total_disability_benefits_bn ? formatBn(summary.total_disability_benefits_bn) : "--"}
+                <div className="mt-2 text-xs text-slate-500">
+                  Model estimate
+                  {summary.total_disability_benefits_bn
+                    ? `, within ${Math.abs((summary.total_disability_benefits_bn / 55.1 - 1) * 100).toFixed(0)}% of`
+                    : " vs"}{" "}
+                  the official{" "}
+                  <a href="https://www.gov.uk/government/consultations/pathways-to-work-reforming-benefits-and-support-to-get-britain-working-green-paper/spring-statement-2025-health-and-disability-benefit-reforms-impacts" target="_blank" rel="noreferrer" className="underline">
+                    £55.1bn (DWP, 2025–26)
+                  </a>
                 </div>
               </div>
             </div>
@@ -181,7 +229,7 @@ export default function BaselineTab({ data }) {
               description="Main reasons people give for being economically inactive."
             />
             <div className="h-[360px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={sortedReasons} layout="vertical" margin={{ left: 10, right: 30, top: 10, bottom: 10 }} barSize={24}>
                   <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} horizontal={false} />
                   <XAxis
@@ -236,7 +284,7 @@ export default function BaselineTab({ data }) {
               description="Total employer NICs paid for employees in each age band."
             />
             <div className="h-[360px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={byAge.filter((d) => !d.age_group?.endsWith("+"))}>
                   <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} />
                   <XAxis
@@ -267,27 +315,39 @@ export default function BaselineTab({ data }) {
         <div className="section-card">
           <SectionHeading
             title="NICs rates and thresholds"
-            description="Current employer NICs rate structure (2026-27 tax year)."
+            description={`Employer NICs rate structure set by the NICs (Secondary Class 1 Contributions) Act 2025, effective 6 April 2025, as applied in the modelled year (${data?.year || 2026}).`}
           />
-          <div className="overflow-x-auto">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Band</th>
-                  <th>Earnings range</th>
-                  <th>Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {NICS_THRESHOLDS.map((row) => (
-                  <tr key={row.band}>
-                    <td className="font-medium"><a href={row.url} target="_blank" rel="noreferrer" className="underline">{row.band}</a></td>
-                    <td>{row.range}</td>
-                    <td>{row.rate}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-2">
+            {NICS_THRESHOLDS.map((row) => (
+              <div
+                key={row.band}
+                className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-3 ${
+                  row.highlight
+                    ? "border-primary-200 bg-primary-50"
+                    : "border-slate-200 bg-slate-50"
+                }`}
+              >
+                <div>
+                  <a href={row.url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-slate-800 underline decoration-slate-300 underline-offset-2 hover:decoration-slate-500">
+                    {row.band}
+                  </a>
+                  <div className="text-xs text-slate-500">{row.range}</div>
+                </div>
+                <span
+                  className={`flex-shrink-0 rounded-full px-3 py-1 text-sm font-bold ${
+                    row.highlight
+                      ? "bg-primary-600 text-white"
+                      : "bg-slate-200 text-slate-700"
+                  }`}
+                >
+                  {row.rate}
+                </span>
+              </div>
+            ))}
+            <p className="pt-1 text-xs text-slate-500">
+              The highlighted 15% main rate is the one the reform abolishes for
+              eligible hires.
+            </p>
           </div>
         </div>
       </div>
@@ -295,7 +355,7 @@ export default function BaselineTab({ data }) {
       {/* ================================================================ */}
       {/* SECTION 3: INACTIVITY TRANSITIONS BY AGE                         */}
       {/* ================================================================ */}
-      <div className="border-t border-slate-200 pt-10">
+      <div id="pct-active-by-age" className="scroll-mt-24 border-t border-slate-200 pt-10">
         <SectionHeading
           title="Percentage becoming economically active within 5 quarters, by age"
           description={<>The left chart shows the raw <a href="https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/methodologies/labourforcesurveyuserguidance" target="_blank" rel="noreferrer" className="underline">Labour Force Survey</a> 5-quarter longitudinal panel data; the right shows the same variable after imputation onto the PolicyEngine Enhanced FRS population.</>}
@@ -310,7 +370,7 @@ export default function BaselineTab({ data }) {
               description="Percentage of people who became economically active in the last 5 quarters, by age (raw LFS weighted data)."
             />
             <div className="h-[400px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={combinedPctActive}>
                   <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} />
                   <XAxis dataKey="age" tick={AXIS_STYLE} tickLine={false} />
@@ -329,7 +389,7 @@ export default function BaselineTab({ data }) {
               description="Imputed probability of becoming active within 5 quarters, after statistical matching from LFS onto the PolicyEngine population."
             />
             <div className="h-[400px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={combinedPctActive}>
                   <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} />
                   <XAxis dataKey="age" tick={AXIS_STYLE} tickLine={false} />

@@ -110,6 +110,14 @@
         "avg_nics_per_recent_worker": 2709,
         "poverty_impact": {
           "n_lifted_out_of_poverty": 16713
+        },
+        "full_time_only": {
+          "cost_bn": 4.4,
+          "n_recently_active": 1451998,
+          "avg_nics_per_recent_worker": 3042,
+          "cost_share_of_all": 0.924,
+          "hours_cut": 30.0,
+          "estimated": true
         }
       },
       "behavioural": {

@@ -403,6 +403,43 @@ def run(args: argparse.Namespace) -> None:
     avg_nics_per_recent = round(_nics_wa_recent / _n_wa_recent)
     print(f"Avg employer NICs per recently-active worker: £{avg_nics_per_recent:,}")
 
+    # ── Step 6b: Full-time-only variant ────────────────────────────────────
+    # A policy design that restricts the exemption to full-time employees only.
+    # Weekly hours are read directly from the Enhanced FRS — no imputation is
+    # needed, unlike sector or NEET status. We apply the ONS 30-hour full-time
+    # threshold. Among employees who actually pay employer NICs, weekly_hours is
+    # populated for ~99.9%, so the small missing-hours group is immaterial here
+    # (it is treated as not full-time, the conservative cost-reducing choice).
+    print("\nStep 6b: Computing full-time-only variant...")
+    FULL_TIME_HOURS_CUT = 30.0
+    weekly_hours = baseline.calculate("weekly_hours", YEAR).values.astype(float)
+    is_full_time = (weekly_hours >= FULL_TIME_HOURS_CUT).astype(float)
+    ft_eligible_prob = eligible_recent_prob * is_full_time
+
+    nics_recently_active_ft = float(
+        MicroSeries(
+            efrs_imp.ni_employer.values * ft_eligible_prob, weights=person_weights
+        ).sum()
+        / 1e9
+    )
+    _n_wa_recent_ft = float(MicroSeries(ft_eligible_prob, weights=person_weights).sum())
+    avg_nics_per_recent_ft = (
+        round(nics_recently_active_ft * 1e9 / _n_wa_recent_ft)
+        if _n_wa_recent_ft > 0
+        else None
+    )
+    ft_cost_share = (
+        nics_recently_active_ft / nics_recently_active
+        if nics_recently_active > 0
+        else None
+    )
+    print(
+        f"  Full-time-only (>= {FULL_TIME_HOURS_CUT:.0f}h/wk) static cost: "
+        f"£{nics_recently_active_ft:.2f}bn"
+        + (f" ({ft_cost_share:.1%} of all-employee cost)" if ft_cost_share else "")
+        + f"; {_n_wa_recent_ft / 1e3:,.0f}k workers"
+    )
+
     # ── Step 7: Build age-group breakdowns ─────────────────────────────────
 
     print("\nStep 7: Building age-group breakdowns...")
@@ -957,6 +994,16 @@ def run(args: argparse.Namespace) -> None:
                     "cost_bn": round(nics_recently_active, 1),
                     "avg_nics_per_recent_worker": avg_nics_per_recent,
                     "poverty_impact": static_poverty_impact,
+                    "full_time_only": {
+                        "cost_bn": round(nics_recently_active_ft, 1),
+                        "n_recently_active": round(_n_wa_recent_ft),
+                        "avg_nics_per_recent_worker": avg_nics_per_recent_ft,
+                        "cost_share_of_all": (
+                            round(ft_cost_share, 3) if ft_cost_share is not None else None
+                        ),
+                        "hours_cut": FULL_TIME_HOURS_CUT,
+                        "estimated": False,
+                    },
                 },
                 "behavioural": behavioural_results,
                 "poverty_impact": poverty_impact,

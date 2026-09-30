@@ -29,9 +29,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - name: Create venv and install
+        # The engine extra (policyengine-uk) lets the State Pension age tests
+        # run against the engine the pipeline uses; no microdata is needed.
         run: |
           uv venv --python ${{ matrix.python-version }} .venv
-          uv pip install --python .venv/bin/python -e .[dev]
+          uv pip install --python .venv/bin/python -e .[dev,engine]
       - name: Pytest
         run: .venv/bin/pytest tests/ -v
 

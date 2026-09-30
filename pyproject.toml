@@ -27,11 +27,17 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# State Pension age by date of birth (policyengine-uk#1899): the pipeline reads
+# each person's is_SP_age, which from 2026-27 splits the 66-year-olds.
+engine = [
+  "policyengine-uk>=2.103.0",
+]
 simulation = [
-  "policyengine-uk>=2.88.10",
+  "nics-exemption[engine]",
   "microimpute>=0.1.0",
 ]
 dev = [
+  "hypothesis>=6",
   "pytest>=8.0",
   "ruff>=0.6",
 ]

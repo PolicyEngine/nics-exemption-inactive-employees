@@ -16,6 +16,12 @@ import pandas as pd
 from microdf import MicroDataFrame, MicroSeries
 
 from .lfs import build_lfs_transition_targets
+from .state_pension import (
+    age_groups,
+    state_pension_age_boundary,
+    working_age_bands,
+    working_age_mask,
+)
 
 # Latest PolicyEngine UK enhanced-FRS microdata, hosted on Hugging Face.
 # Requires `HUGGING_FACE_TOKEN` (with read access to the
@@ -130,15 +136,19 @@ def run(args: argparse.Namespace) -> None:
     is_disabled_benefits = baseline.calculate("is_disabled_for_benefits", YEAR).values
     gender_arr = baseline.calculate("gender", YEAR).values
 
-    # Working age: 16 (legal minimum work age) up to (but not including) state
-    # pension age. SPA is read from PolicyEngine UK's parameter database for
-    # the modelled year — for 2026 this is 66 for both men and women.
-    _params = baseline.tax_benefit_system.parameters(f"{YEAR}-01-01")
-    SPA_MALE = int(_params.gov.dwp.state_pension.age.male)
-    SPA_FEMALE = int(_params.gov.dwp.state_pension.age.female)
-    spa_per_person = np.where(gender_arr == "MALE", SPA_MALE, SPA_FEMALE)
-    working_age = (age >= 16) & (age < spa_per_person)
-    SPA = max(SPA_MALE, SPA_FEMALE)  # used for dashboard age-bin labels
+    # Working age: 16 (legal minimum work age) up to (but not including) State
+    # Pension age. State Pension age is set by date of birth, so each person's
+    # status comes from PolicyEngine UK's is_SP_age for the modelled year: from
+    # 2026-27 some 66-year-olds are over it and others are not. Every age
+    # cut-off below (LFS working age, age groups, wage bands) derives from it.
+    is_sp_age = baseline.calculate("is_SP_age", YEAR).values.astype(bool)
+    working_age = working_age_mask(age, is_sp_age)
+    spa_boundary = state_pension_age_boundary(age, is_sp_age, person_weights.values)
+    print(
+        f"  State Pension age: no one over it below age {spa_boundary.youngest_over}, "
+        f"everyone over it from age {spa_boundary.oldest_under + 1}; share under it "
+        f"at the ages between: {spa_boundary.share_under}"
+    )
 
     # Economically inactive: working-age people in non-active employment statuses
     inactive_statuses = [
@@ -246,11 +256,15 @@ def run(args: argparse.Namespace) -> None:
     print(f"  % of inactive who are disabled: {pct_inactive_disabled}%")
     print(f"  Avg employer NICs per worker: £{avg_nics_per_worker:,}")
 
-    # Inactivity reasons from LFS (most recent quarter, working-age — same SPA cutoff)
+    # Inactivity reasons from LFS (most recent quarter, working age). The LFS
+    # records only age, so at an age where State Pension age is split each
+    # respondent counts with the PolicyEngine share of that age under it.
     lfs_age = lfs["AGE5"]
-    lfs_working_age = (lfs_age >= 16) & (lfs_age < SPA)
+    lfs_working_age_share = np.where(
+        lfs_age >= 16, spa_boundary.under_share(lfs_age.to_numpy()), 0.0
+    )
     lfs_inactive_col = "INCAC055"
-    lfs_inactive_mask = (lfs[lfs_inactive_col] >= 6) & lfs_working_age
+    lfs_inactive_mask = (lfs[lfs_inactive_col] >= 6) & (lfs_working_age_share > 0)
 
     _reason_map = {
         6: "Long-term sick or disabled",
@@ -279,10 +293,14 @@ def run(args: argparse.Namespace) -> None:
 
     _inactive_lfs = lfs.loc[lfs_inactive_mask, [lfs_inactive_col, "LGWT22"]].copy()
     _inactive_lfs["reason"] = _inactive_lfs[lfs_inactive_col].map(_reason_map).fillna("Other")
-    # Sum LGWT22 (the LFS person weight) per reason — the result equals
-    # the weighted count of working-age inactive people in each reason category.
+    _inactive_lfs["working_age_weight"] = (
+        _inactive_lfs["LGWT22"] * lfs_working_age_share[lfs_inactive_mask.to_numpy()]
+    )
+    # Sum the LFS person weight (LGWT22, times the share under State Pension
+    # age) per reason: the weighted count of working-age inactive people in
+    # each reason category.
     inactivity_reasons_series = (
-        _inactive_lfs.groupby("reason")["LGWT22"].sum().sort_values(ascending=False)
+        _inactive_lfs.groupby("reason")["working_age_weight"].sum().sort_values(ascending=False)
     )
     inactivity_reasons = [
         {"reason": reason, "count": round(float(count))}
@@ -406,21 +424,12 @@ def run(args: argparse.Namespace) -> None:
     # ── Step 7: Build age-group breakdowns ─────────────────────────────────
 
     print("\nStep 7: Building age-group breakdowns...")
-    # Age bins for the dashboard. The bottom of the post-SPA bin is read from
-    # PolicyEngine so the "above-state-pension-age" group adjusts automatically
-    # as SPA legislation changes.
-    above_spa_label = f"{SPA}+"
-    age_bins = [
-        (16, 24, "16-24"),
-        (25, 34, "25-34"),
-        (35, 49, "35-49"),
-        (50, SPA - 1, f"50-{SPA - 1}"),
-        (SPA, 120, above_spa_label),
-    ]
-
+    # Age groups for the dashboard: working-age bands, then everyone over State
+    # Pension age (the dashboard treats a label ending in "+" as the
+    # pension-age group). At an age where State Pension age is split (66 in
+    # 2026-27 and 2027-28) each person falls in one group by their status.
     age_data = []
-    for lo, hi, label in age_bins:
-        m = (efrs_imp.age >= lo) & (efrs_imp.age <= hi)
+    for label, m in age_groups(age, is_sp_age, spa_boundary):
         m_recent_prob = recent_prob * m
 
         n_total = float(MicroSeries(m.astype(float), weights=person_weights).sum())
@@ -457,7 +466,7 @@ def run(args: argparse.Namespace) -> None:
     print("\nStep 7b: Building breakdowns by gender, country, family type...")
 
     is_recent = recent_prob
-    # Mirror the SPA-aware working-age definition used elsewhere; we already
+    # Mirror the working-age definition (is_SP_age) used elsewhere; we already
     # have it as `working_age` (np.ndarray), reuse it directly.
     is_working_age = working_age
 
@@ -538,10 +547,11 @@ def run(args: argparse.Namespace) -> None:
     # 9a — impute potential wages for inactive people from employed distribution
     emp_income = baseline.calculate("employment_income", YEAR).values.astype(float)
 
-    # Wage-imputation age bands span legal minimum work age up to SPA-1.
-    # The intermediate bands (24/34/49) are presentational; the upper bound
-    # tracks SPA so the bands stay correctly aligned with working age.
-    _age_bands = [(16, 24), (25, 34), (35, 49), (50, SPA - 1)]
+    # Wage-imputation age bands span legal minimum work age up to the oldest
+    # age at which anyone is under State Pension age. The intermediate bands
+    # (24/34/49) are presentational; the upper bound follows the engine's
+    # status so every working-age person falls in a band.
+    _age_bands = [(lo, hi) for lo, hi, _ in working_age_bands(spa_boundary)]
     _median_wages = {}
     for lo, hi in _age_bands:
         for g in ["MALE", "FEMALE"]:
@@ -633,12 +643,7 @@ def run(args: argparse.Namespace) -> None:
 
         # By age group
         by_age_behav = []
-        for lo, hi, age_label in [
-            (16, 24, "16-24"),
-            (25, 34, "25-34"),
-            (35, 49, "35-49"),
-            (50, 64, "50-64"),
-        ]:
+        for lo, hi, age_label in working_age_bands(spa_boundary):
             m = is_inactive & (age >= lo) & (age <= hi)
             n = float(MicroSeries((prob_enter * m).astype(float), weights=person_weights).sum())
             by_age_behav.append({"age_group": age_label, "n_new_entrants": round(n)})
@@ -967,7 +972,6 @@ def run(args: argparse.Namespace) -> None:
                         "nics_exemption_cost_bn": d["nics_exemption_cost_bn"],
                     }
                     for d in age_data
-                    if d["age_group"] != "65+"
                 ],
                 "by_gender": by_gender,
                 "by_country": by_country,

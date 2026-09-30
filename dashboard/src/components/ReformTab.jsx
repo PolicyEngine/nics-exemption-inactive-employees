@@ -292,6 +292,9 @@ function BreakdownTable({ dimension, byAge, data, totalRecentlyActive, costBn })
   }
 
   if (dimension === "age") {
+    // The pipeline labels the group over State Pension age from the youngest
+    // age at which anyone is over it in the modelled year (e.g. "66+").
+    const pensionAgeGroup = byAge.find((d) => d.age_group?.endsWith("+"))?.age_group;
     return (
       <table className="data-table" style={{ tableLayout: "fixed" }}>
         <colgroup>
@@ -316,9 +319,9 @@ function BreakdownTable({ dimension, byAge, data, totalRecentlyActive, costBn })
           ))}
         </tbody>
         <caption className="caption-bottom pt-3 text-left text-xs text-slate-500">
-          Pension-age groups (66+) are shown for completeness but excluded from
-          the working-age headline count; they contribute effectively nothing
-          to the exemption cost.
+          The group over State Pension age{pensionAgeGroup ? ` (${pensionAgeGroup})` : ""} is
+          shown for completeness but excluded from the working-age headline
+          count; it contributes effectively nothing to the exemption cost.
         </caption>
       </table>
     );
@@ -398,8 +401,8 @@ export default function ReformTab({ data }) {
     router.replace(id === "static" ? "/" : `/?sub=${id}`, { scroll: false });
   }
 
-  // Working-age only: pension-age groups ("66+") are shown in the breakdown
-  // table but excluded from the headline count.
+  // Working-age only: the group over State Pension age (label ending in "+")
+  // is shown in the breakdown table but excluded from the headline count.
   const totalRecentlyActive = useMemo(() => {
     return byAge
       .filter((d) => !d.age_group?.endsWith("+"))

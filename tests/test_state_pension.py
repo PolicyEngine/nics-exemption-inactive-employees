@@ -6,6 +6,7 @@ from hypothesis import strategies as st
 from nics_exemption.state_pension import (
     MINIMUM_WORKING_AGE,
     age_groups,
+    require_date_of_birth_state_pension_age,
     state_pension_age_boundary,
     working_age_bands,
     working_age_mask,
@@ -131,3 +132,15 @@ def test_under_share_carries_the_working_age_total_to_age_only_data(population):
     carried = np.sum(weights * share * (ages >= MINIMUM_WORKING_AGE))
     direct = np.sum(weights * working_age_mask(ages, is_sp_age))
     assert carried == pytest.approx(direct, rel=1e-9)
+
+
+def test_an_engine_with_one_state_pension_age_is_refused():
+    class _System:
+        def __init__(self, variables):
+            self.variables = dict.fromkeys(variables)
+
+    with pytest.raises(RuntimeError, match="by date of birth"):
+        require_date_of_birth_state_pension_age(_System(["age", "is_SP_age"]))
+    require_date_of_birth_state_pension_age(
+        _System(["age", "is_SP_age", "months_since_state_pension_age"])
+    )

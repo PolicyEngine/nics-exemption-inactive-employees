@@ -14,6 +14,7 @@ policyengine_uk = pytest.importorskip("policyengine_uk")
 
 from nics_exemption.state_pension import (  # noqa: E402
     age_groups,
+    require_date_of_birth_state_pension_age,
     state_pension_age_boundary,
     working_age_mask,
 )
@@ -57,6 +58,7 @@ def _microsimulation(year: int):
 
 def _read(year: int):
     simulation = _microsimulation(year)
+    require_date_of_birth_state_pension_age(simulation.tax_benefit_system)
     age = simulation.calculate("age", year).values
     is_sp_age = simulation.calculate("is_SP_age", year).values.astype(bool)
     weights = simulation.calculate("person_weight", year).values

@@ -295,6 +295,20 @@ function BreakdownTable({ dimension, byAge, data, totalRecentlyActive, costBn })
     // The pipeline labels the group over State Pension age from the youngest
     // age at which anyone is over it in the modelled year (e.g. "66+").
     const pensionAgeGroup = byAge.find((d) => d.age_group?.endsWith("+"))?.age_group;
+    // Where State Pension age is split within an age (66 in 2026-27 and
+    // 2027-28), the oldest working-age band runs to that age too, e.g.
+    // "50-66" beside "66+": its people fall in one row or the other by date
+    // of birth.
+    const splitAge = (() => {
+      const lowestPension = parseInt(pensionAgeGroup, 10);
+      const oldestWorking = Math.max(
+        ...byAge
+          .filter((d) => !d.age_group?.endsWith("+"))
+          .map((d) => parseInt(d.age_group?.split("-")[1], 10))
+          .filter((n) => !Number.isNaN(n)),
+      );
+      return oldestWorking >= lowestPension ? lowestPension : null;
+    })();
     return (
       <table className="data-table" style={{ tableLayout: "fixed" }}>
         <colgroup>
@@ -322,6 +336,8 @@ function BreakdownTable({ dimension, byAge, data, totalRecentlyActive, costBn })
           The group over State Pension age{pensionAgeGroup ? ` (${pensionAgeGroup})` : ""} is
           shown for completeness but excluded from the working-age headline
           count; it contributes effectively nothing to the exemption cost.
+          {splitAge != null &&
+            ` People aged ${splitAge} are split between the two rows by date of birth: some have reached State Pension age and others have not yet.`}
         </caption>
       </table>
     );

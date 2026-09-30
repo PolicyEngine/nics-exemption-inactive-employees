@@ -18,6 +18,7 @@ from microdf import MicroDataFrame, MicroSeries
 from .lfs import build_lfs_transition_targets
 from .state_pension import (
     age_groups,
+    require_date_of_birth_state_pension_age,
     state_pension_age_boundary,
     working_age_bands,
     working_age_mask,
@@ -141,6 +142,7 @@ def run(args: argparse.Namespace) -> None:
     # status comes from PolicyEngine UK's is_SP_age for the modelled year: from
     # 2026-27 some 66-year-olds are over it and others are not. Every age
     # cut-off below (LFS working age, age groups, wage bands) derives from it.
+    require_date_of_birth_state_pension_age(baseline.tax_benefit_system)
     is_sp_age = baseline.calculate("is_SP_age", YEAR).values.astype(bool)
     working_age = working_age_mask(age, is_sp_age)
     spa_boundary = state_pension_age_boundary(age, is_sp_age, person_weights.values)
@@ -258,7 +260,10 @@ def run(args: argparse.Namespace) -> None:
 
     # Inactivity reasons from LFS (most recent quarter, working age). The LFS
     # records only age, so at an age where State Pension age is split each
-    # respondent counts with the PolicyEngine share of that age under it.
+    # respondent counts with the PolicyEngine share of that age under it. The
+    # panel predates the rise to 67, so its 66-year-olds were over State
+    # Pension age when interviewed: the modelled year's working-age
+    # 66-year-olds borrow their reasons, which are mostly retirement.
     lfs_age = lfs["AGE5"]
     lfs_working_age_share = np.where(
         lfs_age >= 16, spa_boundary.under_share(lfs_age.to_numpy()), 0.0

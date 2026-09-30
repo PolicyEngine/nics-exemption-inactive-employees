@@ -17,6 +17,25 @@ import numpy as np
 
 # The legal minimum age for full-time work.
 MINIMUM_WORKING_AGE = 16
+# Present in PolicyEngine UK from the release that sets State Pension age by
+# date of birth (policyengine-uk#1899); older releases hold it at 66 forever.
+DATE_OF_BIRTH_MARKER = "months_since_state_pension_age"
+
+
+def require_date_of_birth_state_pension_age(tax_benefit_system) -> None:
+    """Refuse an engine that still holds State Pension age at one age.
+
+    Such an engine runs the pipeline without error but keeps every
+    66-year-old over State Pension age in 2026-27 and later, so the working-age
+    population and every figure built on it would be silently wrong.
+    """
+    if DATE_OF_BIRTH_MARKER not in tax_benefit_system.variables:
+        raise RuntimeError(
+            "This PolicyEngine UK sets one State Pension age for everyone; the "
+            "pipeline needs the release that sets it by date of birth "
+            "(policyengine-uk#1899). Install the engine extra: "
+            'uv pip install -e ".[simulation]".'
+        )
 
 
 def working_age_mask(

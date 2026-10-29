@@ -2,7 +2,7 @@
 
 Interactive dashboard estimating the cost, employment effects, and poverty impact of exempting employers from National Insurance contributions on all employees who recently transitioned from economic inactivity into work (disabled and non-disabled), using [PolicyEngine UK](https://github.com/PolicyEngine/policyengine-uk) microsimulation.
 
-**Live dashboard:** [nics-exemption-inactive-employees.vercel.app](https://nics-exemption-inactive-employees.vercel.app)
+**Live dashboard:** [policyengine.org/uk/nics-exemption-inactive-employees](https://policyengine.org/uk/nics-exemption-inactive-employees)
 
 ## What the dashboard covers
 

@@ -307,7 +307,7 @@ function BreakdownTable({ dimension, byAge, data, totalRecentlyActive, costBn })
           </tr>
         </thead>
         <tbody>
-          {byAge.map((row) => (
+          {byAge.filter((row) => !row.age_group?.endsWith("+")).map((row) => (
             <tr key={row.age_group}>
               <td className="font-medium">{row.age_group}</td>
               <td style={{ textAlign: "right" }}>{formatCount(row.n_recently_active)}</td>
@@ -316,9 +316,8 @@ function BreakdownTable({ dimension, byAge, data, totalRecentlyActive, costBn })
           ))}
         </tbody>
         <caption className="caption-bottom pt-3 text-left text-xs text-slate-500">
-          Pension-age groups (66+) are shown for completeness but excluded from
-          the working-age headline count; they contribute effectively nothing
-          to the exemption cost.
+          We cost the exemption for working-age employees, so the table stops
+          below state pension age.
         </caption>
       </table>
     );
@@ -398,8 +397,8 @@ export default function ReformTab({ data }) {
     router.replace(id === "static" ? "/" : `/?sub=${id}`, { scroll: false });
   }
 
-  // Working-age only: pension-age groups ("66+") are shown in the breakdown
-  // table but excluded from the headline count.
+  // Working-age only. Results built with the calibrated imputation carry no
+  // pension-age row; the filter keeps older result files to working age too.
   const totalRecentlyActive = useMemo(() => {
     return byAge
       .filter((d) => !d.age_group?.endsWith("+"))

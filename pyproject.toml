@@ -45,9 +45,19 @@ simulation = [
   "microimpute==3.1.1",
 ]
 dev = [
+  "hypothesis>=6",
   "packaging",
   "pytest>=8.0",
   "ruff>=0.6",
+]
+imputation = [
+  # Step 4 imputes recently-active status with Microcosm's
+  # CategoricalClassifier (src/nics_exemption/imputation.py). Microcosm doesn't
+  # publish to PyPI, so all three packages come from one pinned commit of
+  # PolicyEngine/microcosm.
+  "microcosm-fit @ git+https://github.com/PolicyEngine/microcosm@dc00d158fe429b188c5066db99e7ede94f79cfdf#subdirectory=packages/microcosm-fit",
+  "microcosm-frame @ git+https://github.com/PolicyEngine/microcosm@dc00d158fe429b188c5066db99e7ede94f79cfdf#subdirectory=packages/microcosm-frame",
+  "microcosm-graph @ git+https://github.com/PolicyEngine/microcosm@dc00d158fe429b188c5066db99e7ede94f79cfdf#subdirectory=packages/microcosm-graph",
 ]
 
 [project.scripts]
@@ -56,6 +66,10 @@ nics-exemption-build = "nics_exemption.cli:main"
 [project.urls]
 Homepage = "https://github.com/PolicyEngine/nics-exemption-inactive-employees"
 Repository = "https://github.com/PolicyEngine/nics-exemption-inactive-employees"
+
+[tool.hatch.metadata]
+# The imputation extra installs Microcosm from a pinned git commit.
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/nics_exemption"]

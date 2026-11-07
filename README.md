@@ -19,7 +19,7 @@ Interactive dashboard estimating the cost, employment effects, and poverty impac
 ```bash
 uv venv --python 3.13 .venv
 source .venv/bin/activate
-uv pip install -e ".[simulation,dev]"
+uv pip install -e ".[simulation,imputation,dev]"
 
 # Hugging Face token with read access to
 # `policyengine/policyengine-uk-data-private` is required — the pipeline
@@ -91,7 +91,7 @@ nics-exemption-inactive-employees/
 
 - [PolicyEngine UK](https://policyengine.org) microsimulation (Enhanced FRS 2023-24)
 - [ONS Labour Force Survey](https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/methodologies/labourforcesurveyuserguidance) (5-quarter longitudinal) for inactivity transitions
-- [microimpute](https://github.com/PolicyEngine/microimpute) library for statistical imputation (LFS → FRS)
+- [Microcosm](https://github.com/PolicyEngine/microcosm)'s `CategoricalClassifier` (microcosm-fit) for the recently-active probabilities we carry from the LFS onto the FRS and scale to the LFS share in each working-age band
 - [Chetty, Guren, Manoli & Weber (2013)](https://rajchetty.com/wp-content/uploads/2021/04/ext_margin.pdf) — *NBER Macroeconomics Annual* 27 — for the central extensive-margin participation elasticity (0.25, the canonical meta-analysis value)
 - [Marie & Vall Castelló (2012)](https://eprints.lse.ac.uk/40085/) for the 0.22 DI-generosity elasticity used in the benefit-cut counterfactual
 - [Gruber (2000)](https://doi.org/10.1086/319564) and [Marie & Vall Castelló (2012)](https://eprints.lse.ac.uk/40085/) for income-effect elasticity

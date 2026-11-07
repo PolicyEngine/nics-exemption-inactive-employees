@@ -386,7 +386,7 @@ export default function BaselineTab({ data }) {
           <div className="section-card">
             <SectionHeading
               title="Imputed: recently-active in Enhanced FRS (5-quarter window)"
-              description="Imputed probability of becoming active within 5 quarters, after statistical matching from LFS onto the PolicyEngine population."
+              description="Mean imputed probability of becoming active within 5 quarters at each working age. We scale each age band to the share the LFS panel measures."
             />
             <div className="h-[400px] w-full">
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>

@@ -50,6 +50,10 @@ The Hugging Face dataset URL the pipeline pulls from is hard-coded as
 reproducibility, edit `DATASET_URL` in `src/nics_exemption/pipeline.py`
 and append `@<version>`.
 
+The `simulation` extra pins microimpute to 1.15.1, the release this study
+was set up on, and caps scikit-learn below 1.9. The published results don't
+record either version, so `pyproject.toml` explains the choice.
+
 ### Dashboard
 
 ```bash

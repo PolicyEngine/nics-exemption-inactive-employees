@@ -29,7 +29,18 @@ dependencies = [
 [project.optional-dependencies]
 simulation = [
   "policyengine-uk>=2.88.10",
-  "microimpute>=0.1.0",
+  # The published results (run 2026-06-12) do not record a microimpute
+  # version. pip resolved 1.15.1 when this study was set up on 2026-04-01,
+  # and nothing in the history required a newer release; a fresh install
+  # on 2026-06-12 would have got 3.1.1 instead. The exact pin keeps a rerun
+  # on the setup release rather than the newest one: PolicyEngine is
+  # archiving microimpute, and PyPI keeps 1.15.1 installable. 1.15.1 allows
+  # scikit-learn 1.9 (2026-06-02), whose random forests draw each bootstrap
+  # sample by sample weight instead of passing the weights to the trees, so
+  # the cap keeps scikit-learn 1.8, which the published run's environment
+  # most likely held.
+  "microimpute==1.15.1",
+  "scikit-learn<1.9",
 ]
 dev = [
   "pytest>=8.0",

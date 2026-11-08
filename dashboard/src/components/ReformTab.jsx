@@ -316,8 +316,8 @@ function BreakdownTable({ dimension, byAge, data, totalRecentlyActive, costBn })
           ))}
         </tbody>
         <caption className="caption-bottom pt-3 text-left text-xs text-slate-500">
-          We cost the exemption for working-age employees, so the table stops
-          below state pension age.
+          We cost the exemption for working-age employees, so we list working
+          ages only.
         </caption>
       </table>
     );

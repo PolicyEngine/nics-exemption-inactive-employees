@@ -1,0 +1,74 @@
+{
+  "1.15.1": {
+    "scikit_learn": "1.8.0",
+    "distinct_values": [
+      0.0,
+      1.0
+    ],
+    "weighted_share_of_receivers_16_and_over_at_1": 0.016842
+  },
+  "2.0.2": {
+    "scikit_learn": "1.8.0",
+    "distinct_values": [
+      0.0,
+      1.0
+    ],
+    "weighted_share_of_receivers_16_and_over_at_1": 0.016842
+  },
+  "2.0.3": {
+    "scikit_learn": "1.8.0",
+    "distinct_values": [
+      0.0,
+      1.0
+    ],
+    "weighted_share_of_receivers_16_and_over_at_1": 0.012486
+  },
+  "2.0.4": {
+    "scikit_learn": "1.8.0",
+    "distinct_values": [
+      0.0,
+      1.0
+    ],
+    "weighted_share_of_receivers_16_and_over_at_1": 0.012486
+  },
+  "2.1.0": {
+    "scikit_learn": "1.8.0",
+    "distinct_values": [
+      0.0,
+      1.0
+    ],
+    "weighted_share_of_receivers_16_and_over_at_1": 0.012486
+  },
+  "2.1.1": {
+    "scikit_learn": "1.8.0",
+    "distinct_values": [
+      0.0,
+      1.0
+    ],
+    "weighted_share_of_receivers_16_and_over_at_1": 0.012486
+  },
+  "3.0.0": {
+    "scikit_learn": "1.8.0",
+    "distinct_values": [
+      0.0,
+      1.0
+    ],
+    "weighted_share_of_receivers_16_and_over_at_1": 0.012486
+  },
+  "3.1.0": {
+    "scikit_learn": "1.8.0",
+    "distinct_values": [
+      0.0,
+      1.0
+    ],
+    "weighted_share_of_receivers_16_and_over_at_1": 0.012486
+  },
+  "3.1.1": {
+    "scikit_learn": "1.8.0",
+    "distinct_values": [
+      0.0,
+      1.0
+    ],
+    "weighted_share_of_receivers_16_and_over_at_1": 0.012486
+  }
+}

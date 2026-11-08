@@ -16,12 +16,12 @@ export default function MethodologyTab({ data }) {
           <a href="https://policyengine.org" target="_blank" rel="noreferrer" className="underline">PolicyEngine UK</a>{" "}
           microsimulation with{" "}
           <a href="https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/methodologies/labourforcesurveyuserguidance" target="_blank" rel="noreferrer" className="underline">LFS longitudinal data</a>.
-          A weighted classifier from{" "}
-          <a href="https://github.com/PolicyEngine/microcosm" target="_blank" rel="noreferrer" className="underline">Microcosm</a>{" "}
-          learns from the LFS panel how likely each working-age person in the
-          Enhanced FRS is to have moved into work within the last 5 quarters,
-          and we scale those probabilities so that each age band matches the
-          share the LFS measures.
+          We train{" "}
+          <a href="https://github.com/PolicyEngine/microcosm" target="_blank" rel="noreferrer" className="underline">Microcosm</a>'s
+          weighted classifier on the LFS panel to predict, for each working-age
+          person in the Enhanced FRS, the probability of having moved into work
+          within the last 5 quarters. We then scale those probabilities so each
+          age band matches the share the LFS measures.
           For the behavioural response, we impute potential wages for inactive
           people (median by age band and gender from the FRS), apply the NICs exemption
           as a wage increase under full pass-through, and estimate entry

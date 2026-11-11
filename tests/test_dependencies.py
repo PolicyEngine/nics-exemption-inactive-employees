@@ -4,23 +4,20 @@ import tomllib
 from pathlib import Path
 
 from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
 
 PYPROJECT = Path(__file__).parent.parent / "pyproject.toml"
 
 
-def _extra(name: str) -> dict[str, Requirement]:
+def _extra(name: str) -> list[Requirement]:
     project = tomllib.loads(PYPROJECT.read_text())["project"]
-    reqs = [Requirement(spec) for spec in project["optional-dependencies"][name]]
-    return {req.name: req for req in reqs}
+    return [Requirement(spec) for spec in project["optional-dependencies"][name]]
 
 
 def test_simulation_extra_pins_microimpute_exactly():
     """The pipeline imputes with microimpute; a looser spec would resolve a newer release."""
-    assert str(_extra("simulation")["microimpute"].specifier) == "==1.15.1"
-
-
-def test_simulation_extra_caps_scikit_learn_below_1_9():
-    """microimpute 1.15.1 allows scikit-learn 1.9, whose forests draw samples by weight."""
-    spec = _extra("simulation")["scikit-learn"].specifier
-    assert "1.8.0" in spec
-    assert "1.9.0" not in spec
+    pins = [req for req in _extra("simulation") if canonicalize_name(req.name) == "microimpute"]
+    assert len(pins) == 1
+    assert str(pins[0].specifier) == "==3.1.1"
+    # A marker would drop the pin on some Python versions.
+    assert pins[0].marker is None

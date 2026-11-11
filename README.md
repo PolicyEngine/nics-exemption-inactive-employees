@@ -50,9 +50,16 @@ The Hugging Face dataset URL the pipeline pulls from is hard-coded as
 reproducibility, edit `DATASET_URL` in `src/nics_exemption/pipeline.py`
 and append `@<version>`.
 
-The `simulation` extra pins microimpute to 1.15.1, the release this study
-was set up on, and caps scikit-learn below 1.9. The published results don't
-record either version, so `pyproject.toml` explains the choice.
+The `simulation` extra pins microimpute to 3.1.1, the release a fresh
+install got on 2026-06-12, when the pipeline last regenerated the published
+results. The results record no microimpute version, so the pin is a choice,
+not a record: a fresh install got 1.15.1 on 2026-04-01 and 2.0.4 on
+2026-04-29 and 2026-04-30, and an environment kept from either date could
+have produced the June results. From 2.0.3 on, microimpute passes donor
+weights to the forest instead of resampling donors by weight, so these
+releases can give different results. policyengine-uk and the dataset still
+float, so a rerun can also differ from the published numbers for reasons the
+pin doesn't cover.
 
 ### Dashboard
 

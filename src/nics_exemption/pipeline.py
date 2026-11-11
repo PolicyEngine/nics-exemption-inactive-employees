@@ -16,6 +16,7 @@ import pandas as pd
 from microdf import MicroDataFrame, MicroSeries
 
 from .lfs import build_lfs_transition_targets
+from .provenance import installed_versions
 
 # Latest PolicyEngine UK enhanced-FRS microdata, hosted on Hugging Face.
 # Requires `HUGGING_FACE_TOKEN` (with read access to the
@@ -946,6 +947,10 @@ def run(args: argparse.Namespace) -> None:
 
     output = {
         "year": YEAR,
+        "run": {
+            "dataset_url": DATASET_URL,
+            "package_versions": installed_versions(),
+        },
         "settings": {
             "effective_marginal_rate": EFFECTIVE_MARGINAL_RATE,
             "elasticities": ELASTICITIES,

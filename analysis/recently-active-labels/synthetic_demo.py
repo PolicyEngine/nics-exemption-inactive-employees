@@ -6,8 +6,9 @@ clipped to [0, 1], as each person's probability of having joined recently.
 This script builds synthetic LFS-like donors and FRS-like receivers and runs:
 
 A. The published call, on whichever microimpute the environment holds. The
-   published results record no microimpute version; PR #15 discusses the two
-   candidates, 1.15.1 and 3.1.1.
+   published results record no microimpute version; ``release_sweep.py`` runs
+   this call under every release up to 3.1.1, the newest on the day of the
+   June run.
 B. The fix: microcosm-fit's CategoricalClassifier probabilities, scaled within
    each working-age band to the donors' weighted share.
 

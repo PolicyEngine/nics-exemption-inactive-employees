@@ -1,19 +1,21 @@
-# Recently-active status: class labels in the published results
+# Recently-active status: 0/1 labels in the published results
 
 For the static cost, the pipeline adds up the employer NICs on working-age
 employees who moved from economic inactivity into work within the LFS
 five-quarter window (`joined_labour_force_recently`). It carries that status
 from the LFS panel onto the Enhanced FRS and treats it as each person's
 probability of having joined recently. In the June 2026 results (commit
-`71add6e`), the imputation gave each person a class label of 0 or 1 instead.
-The scripts here measure the labels' effect on the published results, and
+`71add6e`), the imputation gave each person a 0 or a 1 instead. The scripts
+here measure the labels' effect on the published results, and
 `src/nics_exemption/imputation.py` replaces the labels with calibrated
 probabilities.
 
 ## Findings
 
-1. The imputation wrote a 0 or a 1 for every person, and the pipeline used
-   that label as a probability without calibrating it.
+1. Under every microimpute release from 1.2.2 on, including the two a fresh
+   install would have picked up during the study, the imputation wrote a
+   predicted class, 0 or 1, for each person. The pipeline used that label as
+   a probability without calibrating it.
 2. If each working-age band matched the share the LFS measures, we estimate
    the working-age count would fall from 1,765,640 to between 1.59 million and
    1.65 million, 6.5% to 9.8% lower. The bands would move further: the 16-24
@@ -55,10 +57,24 @@ the day of the June run. Both send the float 0/1 target to a classifier:
 In both, `QRF` calls `predict` on its classifier wrapper
 (`_RandomForestClassifierModel`) with `return_probs=False`. That call returns
 the predicted class, and `autoimpute` writes it into `receiver_data`.
-`release_sweep.py` runs the published call on synthetic data under each of the
-nine releases PyPI lists from 1.15.1 to 3.1.1, and each returns only 0.0 and
-1.0. We size the gap from the published JSON alone, so the sizing holds
-whichever release ran.
+
+`release_sweep.py` runs the published call on synthetic data under each of
+the 53 releases PyPI lists up to 3.1.1 and writes what each returns to
+`release_sweep_output.json`:
+
+- The 30 releases from 1.2.2 to 3.1.1 write predicted classes. Release 1.2.2
+  added `_RandomForestClassifierModel`.
+- The 15 releases from 0.2.2 to 1.2.1 fit no classifier. Their `QRF` fits a
+  quantile forest, predicts ten quantiles for each person and keeps the
+  one a seeded random draw picks. On the synthetic data, every value it keeps
+  is 0 or 1.
+- The eight releases before 0.2.2 can't run the published call. Their
+  `autoimpute` returns a tuple, which has no `receiver_data`, and the first
+  three don't accept `weight_col`. The output records the first error each
+  one hits.
+
+So every release that runs the call wrote only 0s and 1s here. We size the
+gap from the published JSON alone, so the sizing holds whichever release ran.
 
 Besides the static cost, the pipeline uses the labels for the average employer
 NICs per recently-active worker and the static poverty count. It also uses
@@ -210,11 +226,13 @@ python analysis/recently-active-labels/synthetic_demo.py
 uv pip install --target /tmp/mi115 --no-deps "microimpute==1.15.1"
 PYTHONPATH=/tmp/mi115 python analysis/recently-active-labels/synthetic_demo.py
 
-for v in 1.15.1 2.0.2 2.0.3 2.0.4 2.1.0 2.1.1 3.0.0 3.1.0 3.1.1; do
-  uv pip install --target /tmp/mi-$v --no-deps "microimpute==$v"
-  PYTHONPATH=/tmp/mi-$v python analysis/recently-active-labels/release_sweep.py
+for v in $(python analysis/recently-active-labels/release_sweep.py --list); do
+  uv pip install --target "/tmp/mi-$v" --no-deps "microimpute==$v"
+  PYTHONPATH="/tmp/mi-$v" python analysis/recently-active-labels/release_sweep.py
 done
 ```
 
-Each script writes its JSON output beside it, and the outputs here come from
-scikit-learn 1.8.0.
+`--list` asks PyPI's JSON API for the releases. The sweep installs each
+release without its dependencies, so every release runs against the same
+scikit-learn and other packages. Each script writes its JSON output beside it,
+and the outputs here come from scikit-learn 1.8.0.

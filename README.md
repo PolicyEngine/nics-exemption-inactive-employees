@@ -50,6 +50,18 @@ The Hugging Face dataset URL the pipeline pulls from is hard-coded as
 reproducibility, edit `DATASET_URL` in `src/nics_exemption/pipeline.py`
 and append `@<version>`.
 
+The `simulation` extra pins microimpute to 3.1.1, the release a fresh
+install would have got on 2026-06-12, when the pipeline last regenerated the
+published results. The results record no microimpute version, so the pin is
+a choice, not a record. Resolving the requirements as they stood with uv's
+`--exclude-newer` gives 1.15.1 on 2026-04-01 and 2.0.4 on 2026-04-29 and
+2026-04-30, and an environment someone kept from an earlier date could hold
+any release from 1.15.1 to 3.1.1. Up to 2.0.2, microimpute resamples donors
+by weight and fits the forest unweighted; from 2.0.3 on, it passes the
+weights to the forest, so the two groups can give different results.
+policyengine-uk and the dataset still float, so a rerun can also differ from
+the published numbers for reasons the pin doesn't cover.
+
 ### Dashboard
 
 ```bash

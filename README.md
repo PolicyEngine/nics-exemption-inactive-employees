@@ -19,7 +19,7 @@ Interactive dashboard estimating the cost, employment effects, and poverty impac
 ```bash
 uv venv --python 3.13 .venv
 source .venv/bin/activate
-uv pip install -e ".[simulation,dev]"
+uv pip install -e ".[simulation,imputation,dev]"
 
 # Hugging Face token with read access to
 # `policyengine/policyengine-uk-data-private` is required — the pipeline
@@ -50,17 +50,13 @@ The Hugging Face dataset URL the pipeline pulls from is hard-coded as
 reproducibility, edit `DATASET_URL` in `src/nics_exemption/pipeline.py`
 and append `@<version>`.
 
-The `simulation` extra pins microimpute to 3.1.1, the release a fresh
-install would have got on 2026-06-12, when the pipeline last regenerated the
-published results. The results record no microimpute version, so the pin is
-a choice, not a record. Resolving the requirements as they stood with uv's
-`--exclude-newer` gives 1.15.1 on 2026-04-01 and 2.0.4 on 2026-04-29 and
-2026-04-30, and an environment someone kept from an earlier date could hold
-any release from 1.15.1 to 3.1.1. Up to 2.0.2, microimpute resamples donors
-by weight and fits the forest unweighted; from 2.0.3 on, it passes the
-weights to the forest, so the two groups can give different results.
-policyengine-uk and the dataset still float, so a rerun can also differ from
-the published numbers for reasons the pin doesn't cover.
+The `imputation` extra pins microcosm-fit, microcosm-frame and
+microcosm-graph to one commit of PolicyEngine/microcosm. policyengine-uk and
+the dataset still float, so a rerun can differ from the published numbers for
+reasons that pin doesn't cover. The pipeline writes the dataset URL and the
+installed versions of policyengine-uk, policyengine-core, microdf, numpy and
+pandas into the results JSON (`run`). The `imputation` block records the
+classifier's packages and Microcosm commit.
 
 ### Dashboard
 
@@ -91,7 +87,7 @@ nics-exemption-inactive-employees/
 
 - [PolicyEngine UK](https://policyengine.org) microsimulation (Enhanced FRS 2023-24)
 - [ONS Labour Force Survey](https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/methodologies/labourforcesurveyuserguidance) (5-quarter longitudinal) for inactivity transitions
-- [microimpute](https://github.com/PolicyEngine/microimpute) library for statistical imputation (LFS → FRS)
+- [Microcosm](https://github.com/PolicyEngine/microcosm)'s `CategoricalClassifier` (microcosm-fit) for the recently-active probabilities we carry from the LFS onto the FRS and scale to the LFS share in each working-age band
 - [Chetty, Guren, Manoli & Weber (2013)](https://rajchetty.com/wp-content/uploads/2021/04/ext_margin.pdf) — *NBER Macroeconomics Annual* 27 — for the central extensive-margin participation elasticity (0.25, the canonical meta-analysis value)
 - [Marie & Vall Castelló (2012)](https://eprints.lse.ac.uk/40085/) for the 0.22 DI-generosity elasticity used in the benefit-cut counterfactual
 - [Gruber (2000)](https://doi.org/10.1086/319564) and [Marie & Vall Castelló (2012)](https://eprints.lse.ac.uk/40085/) for income-effect elasticity

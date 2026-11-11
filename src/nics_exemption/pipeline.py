@@ -16,6 +16,7 @@ import pandas as pd
 from microdf import MicroDataFrame, MicroSeries
 
 from .lfs import build_lfs_transition_targets
+from .provenance import installed_versions
 
 # Latest PolicyEngine UK enhanced-FRS microdata, hosted on Hugging Face.
 # Requires `HUGGING_FACE_TOKEN` (with read access to the
@@ -292,7 +293,7 @@ def run(args: argparse.Namespace) -> None:
     for item in inactivity_reasons:
         print(f"  {item['reason']}: {item['count']:,}")
 
-    # ── Step 3: Prepare donor data and run autoimpute ──────────────────────
+    # ── Step 3: Prepare donor data for the imputation ──────────────────────
 
     print("Step 3: Preparing imputation...")
     df = pd.concat([X_train, y_train], axis=1)
@@ -309,54 +310,56 @@ def run(args: argparse.Namespace) -> None:
     df["gender"] = df.sex.astype(int).map({1: "MALE", 2: "FEMALE"})
     df["weight"] = weights
 
-    efrs = baseline.calculate_dataframe(["age", "gender", "employment_income"], YEAR)
+    from .imputation import (
+        PREDICTORS,
+        TARGET,
+        classifier_versions,
+        impute_recently_active,
+        working_age_bands,
+    )
 
-    imputed_vars = ["joined_labour_force_recently"]
-    predictor_vars = ["age", "gender", "employment_income"]
+    simulated = baseline.calculate_dataframe(PREDICTORS, YEAR)
+    # Plain columns: the classifier reads values, not a weighted frame.
+    receiver = pd.DataFrame({column: np.asarray(simulated[column]) for column in PREDICTORS})
+    person_weight_values = np.asarray(person_weights, dtype=float)
 
-    print("Step 4: Running imputation...")
+    # ── Step 4: Impute each working-age person's recently-active probability ─
 
-    # Cast booleans to float to avoid numpy boolean subtract error in cross-validation
-    for col in imputed_vars:
-        df[col] = df[col].astype(float)
-
-    from microimpute import QRF
-    from microimpute.comparisons import autoimpute
-
-    # Use QRF because it preserves heterogeneity for the rare transition target.
+    print("Step 4: Imputing recently-active probabilities...")
     train_df = df[df.employment_income.notna()]
     dropped = len(df) - len(train_df)
     print(
-        f"  Running autoimpute with QRF on {len(train_df)} donors "
+        f"  Fitting the classifier on {len(train_df)} donors "
         f"({dropped} wave-5 employees with missing pay dropped)..."
     )
-    results = autoimpute(
-        train_df,
-        efrs,
-        predictors=predictor_vars,
-        imputed_variables=imputed_vars,
-        weight_col="weight",
-        models=[QRF],
+    imputation_bands = working_age_bands(SPA)
+    imputation = impute_recently_active(
+        train_df[PREDICTORS + [TARGET, "weight"]],
+        receiver,
+        # Every weighted panel member, missing pay included, sets the targets.
+        lfs_ages=X_train.age.to_numpy(dtype=float),
+        lfs_joined=y_train[TARGET].to_numpy(dtype=bool),
+        lfs_weights=weights.to_numpy(dtype=float),
+        eligible=working_age,
+        person_weights=person_weight_values,
+        bands=imputation_bands,
     )
-    print(f"  CV results:\n{results.cv_results}")
+    for band in imputation_bands:
+        print(
+            f"  {band.label}: classifier mean "
+            f"{imputation.band_shares_before_calibration[band.label]:.4f}, "
+            f"LFS share {imputation.band_targets[band.label]:.4f}"
+        )
 
-    # ── Step 5: Process imputed results (exactly as notebook) ──────────────
+    # ── Step 5: Attach the probabilities to the PolicyEngine population ───
 
-    print("Step 5: Processing imputed results...")
-    # autoimpute returns AutoImputeResult with .receiver_data containing imputations
-    efrs_imp = results.receiver_data.copy()
-    print(f"  Columns: {list(efrs_imp.columns)}")
-    efrs_imp["joined_labour_force_recently"] = efrs_imp["joined_labour_force_recently"].clip(0, 1)
-    print(
-        f"  joined_labour_force_recently mean: {efrs_imp.joined_labour_force_recently.mean():.4f}"
-    )
-    efrs_imp["joined_labour_force_recently"] = np.where(
-        efrs_imp.age < 16, 0, efrs_imp["joined_labour_force_recently"]
-    )
-
+    print("Step 5: Attaching imputed probabilities...")
+    efrs_imp = receiver.copy()
     for col in efrs_imp.columns:
         if col != "gender":
             efrs_imp[col] = efrs_imp[col].astype(np.float32)
+    # Stay in float64, the precision the band calibration solved in.
+    efrs_imp[TARGET] = imputation.probabilities
 
     # ── Step 6: Calculate employer NICs (the key result) ───────────────────
 
@@ -421,16 +424,32 @@ def run(args: argparse.Namespace) -> None:
     age_data = []
     for lo, hi, label in age_bins:
         m = (efrs_imp.age >= lo) & (efrs_imp.age <= hi)
-        m_recent_prob = recent_prob * m
-
         n_total = float(MicroSeries(m.astype(float), weights=person_weights).sum())
+        nics_total = float(
+            MicroSeries(efrs_imp.ni_employer.values * m, weights=person_weights).sum() / 1e9
+        )
+        if label == above_spa_label:
+            # The imputation covers working-age people only (the LFS panel
+            # stops at 70), so it gives no recently-active count above SPA. We
+            # cost the exemption for working-age employees, so it costs nothing there.
+            print(f"  {label}: not imputed (state pension age and over)")
+            age_data.append(
+                {
+                    "age_group": label,
+                    "n_total": round(n_total),
+                    "n_recently_active": None,
+                    "pct_recently_active": None,
+                    "nics_exemption_cost_bn": 0.0,
+                    "employer_nics_bn": round(nics_total, 1),
+                }
+            )
+            continue
+
+        m_recent_prob = recent_prob * m
         n_recent = float(MicroSeries(m_recent_prob, weights=person_weights).sum())
         nics_recent = float(
             MicroSeries(efrs_imp.ni_employer.values * m_recent_prob, weights=person_weights).sum()
             / 1e9
-        )
-        nics_total = float(
-            MicroSeries(efrs_imp.ni_employer.values * m, weights=person_weights).sum() / 1e9
         )
 
         pct_recent = round(n_recent / n_total * 100, 1)
@@ -518,8 +537,18 @@ def run(args: argparse.Namespace) -> None:
     lfs_mdf = MicroDataFrame(lfs_df_chart, weights=lfs_df_chart.weight)
     pct_active_by_age_lfs = lfs_mdf.became_active.groupby(lfs_mdf.age).mean()
 
-    # Chart 2 from notebook: Imputed onto Enhanced FRS
-    pct_active_by_age = efrs_mdf.joined_labour_force_recently.groupby(efrs_mdf.age).mean()
+    # Chart 2: mean imputed probability at each working age. The imputation
+    # gives everyone else 0, so older ages would only show that choice.
+    working_age_mdf = MicroDataFrame(
+        pd.DataFrame(
+            {
+                "age": efrs_imp.age.to_numpy()[working_age],
+                TARGET: efrs_imp[TARGET].to_numpy()[working_age],
+            }
+        ),
+        weights=person_weight_values[working_age],
+    )
+    pct_active_by_age = working_age_mdf[TARGET].groupby(working_age_mdf.age).mean()
 
     # ── Step 9: Behavioural model — labour supply response ────────────────
 
@@ -918,6 +947,10 @@ def run(args: argparse.Namespace) -> None:
 
     output = {
         "year": YEAR,
+        "run": {
+            "dataset_url": DATASET_URL,
+            "package_versions": installed_versions(),
+        },
         "settings": {
             "effective_marginal_rate": EFFECTIVE_MARGINAL_RATE,
             "elasticities": ELASTICITIES,
@@ -967,7 +1000,8 @@ def run(args: argparse.Namespace) -> None:
                         "nics_exemption_cost_bn": d["nics_exemption_cost_bn"],
                     }
                     for d in age_data
-                    if d["age_group"] != "65+"
+                    # We cost the exemption for working-age employees only.
+                    if d["age_group"] != above_spa_label
                 ],
                 "by_gender": by_gender,
                 "by_country": by_country,
@@ -986,6 +1020,20 @@ def run(args: argparse.Namespace) -> None:
         },
         "pct_active_by_age": {
             str(int(k)): round(float(v), 4) for k, v in pct_active_by_age.items() if not np.isnan(v)
+        },
+        "imputation": {
+            "method": (
+                "microcosm-fit CategoricalClassifier probabilities, scaled within each "
+                "working-age band to the LFS panel's weighted share (capped at 1)"
+            ),
+            "band_targets": {k: round(v, 6) for k, v in imputation.band_targets.items()},
+            "band_shares_before_calibration": {
+                k: round(v, 6) for k, v in imputation.band_shares_before_calibration.items()
+            },
+            "n_donors": len(train_df),
+            "n_donors_joined_recently": int(train_df[TARGET].astype(bool).sum()),
+            "n_dropped_missing_pay": dropped,
+            "package_versions": classifier_versions(),
         },
     }
 

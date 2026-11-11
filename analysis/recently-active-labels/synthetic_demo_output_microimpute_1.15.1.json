@@ -1,0 +1,79 @@
+{
+  "donors": 6000,
+  "donors_joined_recently": 220,
+  "donors_with_missing_pay_dropped_from_the_fit": 588,
+  "receivers": 40000,
+  "packages": {
+    "scikit_learn": "1.8.0",
+    "microimpute": "1.15.1"
+  },
+  "A_published": {
+    "distinct_imputed_values": [
+      0.0,
+      1.0
+    ]
+  },
+  "B_fix": {
+    "distinct_values_among_working_age": 17538,
+    "nonzero_outside_working_age": 0,
+    "people_at_probability_1": 0
+  },
+  "by_age_band": [
+    {
+      "age_group": "16-24",
+      "true_share": 0.10425382115951928,
+      "direct_share_in_donors": 0.09790633335504495,
+      "A_published_share": 0.07931748381381669,
+      "B_classifier_share_before_calibration": 0.08494869758345029,
+      "B_fix_share": 0.09790633335504495
+    },
+    {
+      "age_group": "25-34",
+      "true_share": 0.04624165499547159,
+      "direct_share_in_donors": 0.03912554897646048,
+      "A_published_share": 0.01686990485545181,
+      "B_classifier_share_before_calibration": 0.04410766594889873,
+      "B_fix_share": 0.03912554897646048
+    },
+    {
+      "age_group": "35-49",
+      "true_share": 0.02442867113340838,
+      "direct_share_in_donors": 0.02661269286397832,
+      "A_published_share": 0.014047214309961864,
+      "B_classifier_share_before_calibration": 0.027601930315617775,
+      "B_fix_share": 0.02661269286397832
+    },
+    {
+      "age_group": "50-65",
+      "true_share": 0.017080502477076546,
+      "direct_share_in_donors": 0.01708384775558909,
+      "A_published_share": 0.002207289348170397,
+      "B_classifier_share_before_calibration": 0.01942621190538213,
+      "B_fix_share": 0.017083847755589094
+    },
+    {
+      "age_group": "16-65",
+      "true_share": 0.040223765087563396,
+      "direct_share_in_donors": 0.039065037065896445,
+      "A_published_share": 0.02199634041244163,
+      "B_classifier_share_before_calibration": 0.03818066899157271,
+      "B_fix_share": 0.038330479322129136
+    },
+    {
+      "age_group": "66-70",
+      "true_share": 0.008727099338776583,
+      "direct_share_in_donors": 0.0022611589284206855,
+      "A_published_share": 0.0,
+      "B_classifier_share_before_calibration": 0.00405552372654153,
+      "B_fix_share": 0.0
+    },
+    {
+      "age_group": "71-80",
+      "true_share": 0.006492641012084404,
+      "direct_share_in_donors": null,
+      "A_published_share": 0.0,
+      "B_classifier_share_before_calibration": 0.003161103636552116,
+      "B_fix_share": 0.0
+    }
+  ]
+}

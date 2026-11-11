@@ -1,0 +1,192 @@
+{
+  "bands": [
+    {
+      "age_group": "16-24",
+      "population": 6447871,
+      "published_count": 345477,
+      "published_share": 0.053580011138560306,
+      "published_cost_bn": 0.92,
+      "band_employer_nics_bn": 10.8,
+      "labelled_share_even_split": 0.04728888888888889,
+      "lfs_share": {
+        "even": 0.10113333333333334,
+        "tilted": 0.10681571876891666
+      },
+      "lfs_level_count": {
+        "even": 652094.6871333334,
+        "tilted": 688733.9753942534
+      },
+      "count_vs_published": {
+        "even": 0.8875198265972364,
+        "tilted": 0.9935740306713714
+      },
+      "cost_bn": {
+        "even": {
+          "same_mix": 1.7365182404694575,
+          "band_average_nics": 1.09224
+        },
+        "tilted": {
+          "same_mix": 1.8340881082176617,
+          "band_average_nics": 1.1536097627043
+        }
+      }
+    },
+    {
+      "age_group": "25-34",
+      "population": 11618098,
+      "published_count": 688033,
+      "published_share": 0.059220795004483524,
+      "published_cost_bn": 1.8,
+      "band_employer_nics_bn": 42.9,
+      "labelled_share_even_split": 0.05634,
+      "lfs_share": {
+        "even": 0.03841,
+        "tilted": 0.03966616640190762
+      },
+      "lfs_level_count": {
+        "even": 446251.14418,
+        "tilted": 460845.4085416701
+      },
+      "count_vs_published": {
+        "even": -0.3514102605834313,
+        "tilted": -0.33019868445020784
+      },
+      "cost_bn": {
+        "even": {
+          "same_mix": 1.1674615309498237,
+          "band_average_nics": 1.647789
+        },
+        "tilted": {
+          "same_mix": 1.2056423679896258,
+          "band_average_nics": 1.701678538641837
+        }
+      }
+    },
+    {
+      "age_group": "35-49",
+      "population": 12818504,
+      "published_count": 422570,
+      "published_share": 0.03296562531789981,
+      "published_cost_bn": 1.19,
+      "band_employer_nics_bn": 53.0,
+      "labelled_share_even_split": 0.028586666666666666,
+      "lfs_share": {
+        "even": 0.02042,
+        "tilted": 0.020949071118327073
+      },
+      "lfs_level_count": {
+        "even": 261753.85168000002,
+        "tilted": 268535.7519265601
+      },
+      "count_vs_published": {
+        "even": -0.3805668843505218,
+        "tilted": -0.3645177084824761
+      },
+      "cost_bn": {
+        "even": {
+          "same_mix": 0.737125407622879,
+          "band_average_nics": 1.08226
+        },
+        "tilted": {
+          "same_mix": 0.7562239269058535,
+          "band_average_nics": 1.110300769271335
+        }
+      }
+    },
+    {
+      "age_group": "50-65",
+      "population": 15360531,
+      "published_count": 309560,
+      "published_share": 0.020152949139583782,
+      "published_cost_bn": 0.88,
+      "band_employer_nics_bn": 49.5,
+      "labelled_share_even_split": 0.01985625,
+      "lfs_share": {
+        "even": 0.0151375,
+        "tilted": 0.015167373688181211
+      },
+      "lfs_level_count": {
+        "even": 232520.0380125,
+        "tilted": 232978.91372589182
+      },
+      "count_vs_published": {
+        "even": -0.24886924017153378,
+        "tilted": -0.24738689195667463
+      },
+      "cost_bn": {
+        "even": {
+          "same_mix": 0.6609950686490502,
+          "band_average_nics": 0.74930625
+        },
+        "tilted": {
+          "same_mix": 0.6622995350781264,
+          "band_average_nics": 0.75078499756497
+        }
+      }
+    }
+  ],
+  "working_age": {
+    "working_age_population": 46245004,
+    "published_count": 1765640,
+    "published_share": 0.03818012427893833,
+    "published_cost_bn": 4.78,
+    "published_cost_bn_sum_of_rounded_bands": 4.79,
+    "lfs_level": {
+      "even": {
+        "count": 1592619.7210058335,
+        "share": 0.03443874112338348,
+        "count_vs_published": -0.09799295382646889,
+        "cost_bn_same_mix_by_band": 4.302100247691211,
+        "cost_bn_band_average_nics": 4.57159525,
+        "cost_bn_same_mix_overall": 4.311593680709479,
+        "bands_above_published": [
+          "16-24"
+        ]
+      },
+      "tilted": {
+        "count": 1651094.0495883755,
+        "share": 0.03570318751812359,
+        "count_vs_published": -0.0648750313833083,
+        "cost_bn_same_mix_by_band": 4.458253938191268,
+        "cost_bn_band_average_nics": 4.716374068182442,
+        "cost_bn_same_mix_overall": 4.469897349987787,
+        "bands_above_published": [
+          "16-24"
+        ]
+      }
+    }
+  },
+  "pension_age": {
+    "age_groups": [
+      "66+"
+    ],
+    "published_count": 1012805,
+    "population": 12021635,
+    "cost_bn": 0.0,
+    "oldest_lfs_age": 70,
+    "lfs_share_by_age_above_spa": {
+      "66": 0.0189,
+      "67": 0.0136,
+      "68": 0.0093,
+      "69": 0.0229,
+      "70": 0.005
+    },
+    "labelled_share_by_age_beyond_lfs": {
+      "71": 0.211,
+      "72": 0.1431,
+      "73": 0.0257,
+      "74": 0.0339,
+      "75": 0.1182,
+      "76": 0.1938,
+      "77": 0.1183,
+      "78": 0.3834,
+      "79": 0.2323,
+      "80": 0.0165
+    },
+    "labelled_share_range_beyond_lfs": [
+      0.0165,
+      0.3834
+    ],
+    "count_including_pension_age": 2778445
+  }
+}
